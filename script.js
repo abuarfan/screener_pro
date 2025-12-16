@@ -2,9 +2,8 @@
 // 1. KONFIGURASI SUPABASE
 // ==========================================
 // Ganti dengan URL dan API Key proyek Supabase Anda
-const supabaseUrl = 'MASUKKAN_URL_SUPABASE_ANDA_DISINI';
-const supabaseKey = 'MASUKKAN_ANON_KEY_ANDA_DISINI';
-
+const supabaseUrl = 'https://mbccvmalvbdxbornqtqc.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1iY2N2bWFsdmJkeGJvcm5xdHFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDc1MzEsImV4cCI6MjA4MTQ4MzUzMX0.FicPHqOtziJuac5OrNvTc9OG7CEK4Bn_G9F9CYR-N3s';
 // Inisialisasi Client
 const db = supabase.createClient(supabaseUrl, supabaseKey);
 
