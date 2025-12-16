@@ -42,6 +42,43 @@
             </div>
         </div>
 
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <div class="btn-group w-100 shadow-sm" role="group">
+                    <input type="radio" class="btn-check" name="btnradio" id="filter-all" autocomplete="off" checked onclick="setFilter('ALL')">
+                    <label class="btn btn-outline-secondary" for="filter-all">Semua Sinyal</label>
+                  
+                    <input type="radio" class="btn-check" name="btnradio" id="filter-buy" autocomplete="off" onclick="setFilter('BUY')">
+                    <label class="btn btn-outline-success" for="filter-buy">Strong BUY 🚀</label>
+                  
+                    <input type="radio" class="btn-check" name="btnradio" id="filter-sell" autocomplete="off" onclick="setFilter('SELL')">
+                    <label class="btn btn-outline-danger" for="filter-sell">Strong SELL 🔻</label>
+
+                    <input type="radio" class="btn-check" name="btnradio" id="filter-owned" autocomplete="off" onclick="setFilter('OWNED')">
+                    <label class="btn btn-outline-primary" for="filter-owned">💼 Portofolio (OWNED)</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 text-nowrap">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Kode</th>
+                                <th>Close</th>
+                                <th class="text-end">Chg %</th> <th class="text-center">Sinyal</th> <th class="text-center">Power</th>  <th class="text-end">Volume</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <div class="card shadow-sm">
             <div class="card-body p-0">
                 <div class="table-responsive">
