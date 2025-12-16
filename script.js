@@ -5,6 +5,33 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 // PERBAIKAN: Kita ganti nama variabel client menjadi 'db' agar tidak error
 const db = supabase.createClient(supabaseUrl, supabaseKey);
 
+// ==========================================
+// AUTH CHECK (Proteksi Halaman)
+// ==========================================
+async function checkSession() {
+    const { data: { session } } = await db.auth.getSession();
+    
+    // Jika tidak ada session (belum login), tendang ke login page
+    if (!session) {
+        window.location.href = 'login.html';
+    } else {
+        // Opsional: Tampilkan email user di console
+        console.log("Logged in as:", session.user.email);
+    }
+}
+// Jalankan pengecekan session segera
+checkSession();
+
+// ==========================================
+// LOGOUT LOGIC
+// ==========================================
+const btnLogout = document.getElementById('btn-logout');
+if (btnLogout) {
+    btnLogout.addEventListener('click', async () => {
+        await db.auth.signOut();
+        window.location.href = 'login.html';
+    });
+}
 // Elemen DOM
 const tableBody = document.getElementById('table-body');
 const statusAlert = document.getElementById('status-alert');
