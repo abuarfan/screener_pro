@@ -20,7 +20,7 @@ async function loadSaham() {
         .from('data_saham')
         .select('*')
         .order('kode_saham', { ascending: true })
-        .limit(100);
+        .limit(1000);
 
     if (error) {
         console.error("Fetch Error:", error);
