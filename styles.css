@@ -1,0 +1,31 @@
+body {
+    background-color: #f0f2f5;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card {
+    border: none;
+    border-radius: 8px;
+}
+
+.table th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.table td {
+    font-size: 0.95rem;
+}
+
+/* Warna khusus untuk angka positif/negatif */
+.text-up { color: #198754; font-weight: 600; }
+.text-down { color: #dc3545; font-weight: 600; }
+.text-neutral { color: #6c757d; }
+
+/* Animasi loading sederhana */
+.loading-opacity {
+    opacity: 0.5;
+    pointer-events: none;
+}
