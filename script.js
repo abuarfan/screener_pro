@@ -1,8 +1,9 @@
 // ==========================================
 // 1. KONFIGURASI SUPABASE
 // ==========================================
-const supabaseUrl = 'https://mbccvmalvbdxbornqtqc.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1iY2N2bWFsdmJkeGJvcm5xdHFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDc1MzEsImV4cCI6MjA4MTQ4MzUzMX0.FicPHqOtziJuac5OrNvTc9OG7CEK4Bn_G9F9CYR-N3s';
+// Ganti dengan URL dan API Key proyek Supabase Anda
+const supabaseUrl = 'MASUKKAN_URL_SUPABASE_ANDA_DISINI';
+const supabaseKey = 'MASUKKAN_ANON_KEY_ANDA_DISINI';
 const db = supabase.createClient(supabaseUrl, supabaseKey);
 
 // ==========================================
@@ -25,13 +26,16 @@ async function checkSession() {
 }
 checkSession();
 
-// Logout
-document.getElementById('btn-logout')?.addEventListener('click', async () => {
-    if(confirm("Logout?")) {
-        await db.auth.signOut();
-        window.location.href = 'login.html';
-    }
-});
+// Logout Listener
+const btnLogout = document.getElementById('btn-logout');
+if(btnLogout) {
+    btnLogout.addEventListener('click', async () => {
+        if(confirm("Logout?")) {
+            await db.auth.signOut();
+            window.location.href = 'login.html';
+        }
+    });
+}
 
 // ==========================================
 // 3. LOAD DATA (PASAR + PORTOFOLIO)
@@ -51,7 +55,7 @@ async function loadData() {
         .from('portfolio')
         .select('*');
 
-    // Jalankan kedua request secara paralel (biar cepat)
+    // Jalankan request paralel
     const [marketRes, portfolioRes] = await Promise.all([marketReq, portfolioReq]);
 
     if (marketRes.error) {
@@ -60,17 +64,20 @@ async function loadData() {
     }
 
     allStocks = marketRes.data;
-    myPortfolio = portfolioRes.data || []; // Kalau kosong/error, set array kosong
+    myPortfolio = portfolioRes.data || [];
 
-    // Render
     applyFilterAndRender();
-    showAlert('success', `Data siap! Market: ${allStocks.length}, Owned: ${myPortfolio.length}`);
+    
+    if(allStocks.length === 0) {
+        showAlert('warning', 'Data kosong. Silakan upload file "Ringkasan Saham" (CSV).');
+    } else {
+        showAlert('success', `Data siap! Market: ${allStocks.length}, Owned: ${myPortfolio.length}`);
+    }
 }
 
 // ==========================================
 // 4. LOGIKA ANALISA & GABUNG DATA
 // ==========================================
-
 function setFilter(type) {
     currentFilter = type;
     applyFilterAndRender();
@@ -79,9 +86,7 @@ function setFilter(type) {
 function applyFilterAndRender() {
     // 1. Mapping Data Pasar + Data Portofolio
     const processedData = allStocks.map(stock => {
-        // Cek apakah saham ini ada di portofolio user?
         const owned = myPortfolio.find(p => p.kode_saham === stock.kode_saham);
-        
         return analyzeStock(stock, owned);
     });
 
@@ -94,7 +99,6 @@ function applyFilterAndRender() {
     } else if (currentFilter === 'SELL') {
         filteredData = processedData.filter(s => s.signal === 'SELL');
     } else if (currentFilter === 'OWNED') {
-        // Hanya ambil yang punya data 'owned'
         filteredData = processedData.filter(s => s.isOwned);
     }
 
@@ -103,26 +107,30 @@ function applyFilterAndRender() {
 
 function analyzeStock(stock, ownedData) {
     const close = Number(stock.penutupan) || 0;
-    const prev = Number(stock.sebelumnya) || close;
+    const prev = Number(stock.sebelumnya) || close; // Ambil dari kolom 'sebelumnya'
     
-    // Analisa Teknikal Dasar
+    // Hitung Perubahan
     const change = close - prev;
     const chgPercent = prev === 0 ? 0 : (change / prev) * 100;
 
+    // Logika Sinyal Simple
     let signal = 'NEUTRAL';
     let powerScore = 50;
 
-    if (chgPercent >= 1) { signal = 'BUY'; powerScore = 75; }
-    else if (chgPercent <= -1) { signal = 'SELL'; powerScore = 25; }
+    if (chgPercent >= 1) { signal = 'BUY'; powerScore = 75 + chgPercent; }
+    else if (chgPercent <= -1) { signal = 'SELL'; powerScore = 25 + chgPercent; }
 
-    // Analisa Portofolio (Jika user punya)
+    // Clamp Power Score 0-100
+    powerScore = Math.min(Math.max(Math.round(powerScore), 0), 100);
+
+    // Analisa Portofolio
     let portfolioInfo = null;
     if (ownedData) {
         const avgPrice = Number(ownedData.avg_price);
         const lots = Number(ownedData.lots);
         const marketVal = close * lots * 100; // 1 lot = 100 lembar
         const buyVal = avgPrice * lots * 100;
-        const plVal = marketVal - buyVal; // Rupiah Profit/Loss
+        const plVal = marketVal - buyVal;
         const plPercent = (plVal / buyVal) * 100;
 
         portfolioInfo = {
@@ -136,7 +144,7 @@ function analyzeStock(stock, ownedData) {
     return {
         ...stock,
         change, chgPercent, signal, powerScore,
-        isOwned: !!ownedData, // Boolean true/false
+        isOwned: !!ownedData,
         portfolio: portfolioInfo
     };
 }
@@ -155,12 +163,9 @@ function renderTable(data) {
         const fmt = (n) => new Intl.NumberFormat('id-ID').format(n);
         const fmtDec = (n) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(n);
 
-        // LOGIKA TAMPILAN DINAMIS
-        // Jika sedang mode "OWNED", tampilkan P/L. Jika mode biasa, tampilkan Chg Harian.
+        // Tampilan Dinamis (P/L atau Chg%)
         let mainMetricHtml = '';
-        
         if (currentFilter === 'OWNED' && item.isOwned) {
-            // Tampilan Khusus Portofolio (P/L)
             const pl = item.portfolio.plPercent;
             const plColor = pl >= 0 ? 'text-success' : 'text-danger';
             mainMetricHtml = `
@@ -168,7 +173,6 @@ function renderTable(data) {
                 <small class="text-muted" style="font-size:11px">Avg: ${fmt(item.portfolio.avg)}</small>
             `;
         } else {
-            // Tampilan Biasa (Perubahan Harian)
             const chgColor = item.change >= 0 ? 'text-success' : 'text-danger';
             mainMetricHtml = `
                 <div class="${chgColor} fw-bold">${item.change > 0 ? '+' : ''}${fmtDec(item.chgPercent)}%</div>
@@ -180,8 +184,7 @@ function renderTable(data) {
         if(item.signal === 'BUY') signalBadge = `<span class="badge bg-success">BUY</span>`;
         if(item.signal === 'SELL') signalBadge = `<span class="badge bg-danger">SELL</span>`;
 
-        // Tombol Add/Edit Portfolio
-        // Jika sudah punya (Owned), warnanya biru solid. Jika belum, outline.
+        // Tombol Action
         const btnClass = item.isOwned ? 'btn-primary' : 'btn-outline-primary';
         const btnIcon = item.isOwned ? '✏️' : '+';
 
@@ -197,98 +200,160 @@ function renderTable(data) {
             </td>
             <td class="text-end small">${fmt(item.volume)}</td>
             <td class="text-center">
-                <button class="btn btn-sm ${btnClass}" onclick="openPortfolioModal('${item.kode_saham}')" title="Atur Portofolio">${btnIcon}</button>
+                <button class="btn btn-sm ${btnClass}" onclick="openPortfolioModal('${item.kode_saham}')">${btnIcon}</button>
             </td>
         `;
         tableBody.appendChild(row);
     });
 
-    if (data.length === 0) {
-        if (currentFilter === 'OWNED') footerInfo.innerText = "Belum ada saham di portofolio.";
-        else footerInfo.innerText = "Tidak ada data.";
-    } else {
-        footerInfo.innerText = `Menampilkan ${data.length} saham.`;
-    }
+    footerInfo.innerText = `Menampilkan ${data.length} saham.`;
 }
 
 // ==========================================
 // 6. MODAL & SAVE PORTFOLIO
 // ==========================================
-const portfolioModal = new bootstrap.Modal(document.getElementById('portfolioModal'));
+// Pastikan elemen modal ada di HTML sebelum memanggil ini
+let portfolioModal; 
+try {
+    portfolioModal = new bootstrap.Modal(document.getElementById('portfolioModal'));
+} catch(e) { console.log("Modal belum di-render HTML"); }
+
 const formKode = document.getElementById('input-kode');
 const formAvg = document.getElementById('input-avg');
 const formLots = document.getElementById('input-lots');
 const labelModalKode = document.getElementById('modal-kode-saham');
 const btnDelete = document.getElementById('btn-delete-portfolio');
 
-// Buka Modal
 window.openPortfolioModal = (kode) => {
-    // Cari data saham ini
     const stock = allStocks.find(s => s.kode_saham === kode);
     const owned = myPortfolio.find(p => p.kode_saham === kode);
 
-    // Isi form
     labelModalKode.innerText = kode;
     formKode.value = kode;
     
     if (owned) {
         formAvg.value = owned.avg_price;
         formLots.value = owned.lots;
-        btnDelete.style.display = 'block'; // Tampilkan tombol hapus
+        if(btnDelete) btnDelete.style.display = 'block';
     } else {
-        formAvg.value = stock.penutupan; // Default isi harga sekarang
+        formAvg.value = stock.penutupan;
         formLots.value = 1;
-        btnDelete.style.display = 'none'; // Sembunyikan tombol hapus
+        if(btnDelete) btnDelete.style.display = 'none';
     }
-
     portfolioModal.show();
 };
 
-// Simpan Data
-document.getElementById('portfolio-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const kode = formKode.value;
-    const avg = formAvg.value;
-    const lots = formLots.value;
+const pfForm = document.getElementById('portfolio-form');
+if(pfForm) {
+    pfForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        showAlert('info', 'Menyimpan...');
+        portfolioModal.hide();
 
-    showAlert('info', 'Menyimpan portofolio...');
-    portfolioModal.hide();
+        const { error } = await db.from('portfolio').upsert({
+            user_id: currentUser.id,
+            kode_saham: formKode.value,
+            avg_price: formAvg.value,
+            lots: formLots.value
+        }, { onConflict: 'user_id, kode_saham' });
 
-    // Upsert ke Supabase
-    const { error } = await db.from('portfolio').upsert({
-        user_id: currentUser.id,
-        kode_saham: kode,
-        avg_price: avg,
-        lots: lots
-    }, { onConflict: 'user_id, kode_saham' });
+        if (error) showAlert('danger', error.message);
+        else {
+            await loadData();
+            showAlert('success', 'Tersimpan!');
+        }
+    });
+}
 
-    if (error) {
-        showAlert('danger', 'Gagal simpan: ' + error.message);
-    } else {
-        await loadData(); // Reload data biar tabel update
-        showAlert('success', 'Portofolio berhasil disimpan!');
-    }
-});
+if(btnDelete) {
+    btnDelete.addEventListener('click', async () => {
+        if(!confirm("Hapus?")) return;
+        portfolioModal.hide();
+        const { error } = await db.from('portfolio').delete().match({ user_id: currentUser.id, kode_saham: formKode.value });
+        if(!error) { await loadData(); showAlert('success', 'Dihapus.'); }
+    });
+}
 
-// Hapus Data
-btnDelete.addEventListener('click', async () => {
-    if(!confirm("Hapus saham ini dari portofolio?")) return;
+// ==========================================
+// 7. FIX: UPLOAD CSV (SESUAI FORMAT ANDA)
+// ==========================================
+const csvInput = document.getElementById('csv-file-input');
+if (csvInput) {
+    csvInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        showAlert('info', 'Membaca file Ringkasan Saham...');
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async function(results) {
+                const rawData = results.data;
+                console.log("Header ditemukan:", results.meta.fields);
+
+                const formattedData = rawData.map(row => {
+                    // Helper cari key case-insensitive
+                    const findKey = (keywords) => {
+                        const keys = Object.keys(row);
+                        return keys.find(k => keywords.some(w => k.toLowerCase().includes(w)));
+                    };
+
+                    // KEYWORDS KHUSUS FILE ANDA
+                    const keyKode = findKey(['kode saham', 'kode']) || 'Kode Saham';
+                    const keyName = findKey(['nama perusahaan', 'nama']) || 'Nama Perusahaan';
+                    const keyClose = findKey(['penutupan', 'close']) || 'Penutupan';
+                    const keyVol = findKey(['volume']) || 'Volume';
+                    // Kolom 'Sebelumnya' ada di file Anda, ini penting!
+                    const keyPrev = findKey(['sebelumnya', 'previous']) || 'Sebelumnya';
+                    const keyDate = findKey(['tanggal', 'date']) || 'Tanggal Perdagangan Terakhir';
+
+                    const cleanNum = (val) => {
+                        if (!val) return 0;
+                        if (typeof val === 'number') return val;
+                        return parseFloat(val.toString().replace(/,/g, ''));
+                    };
+
+                    // Skip jika kode saham kosong
+                    if(!row[keyKode]) return null;
+
+                    return {
+                        kode_saham: row[keyKode],
+                        nama_perusahaan: row[keyName] || '',
+                        penutupan: cleanNum(row[keyClose]),
+                        volume: cleanNum(row[keyVol]),
+                        sebelumnya: cleanNum(row[keyPrev]), // Ambil data sebelumnya
+                        tanggal_perdagangan_terakhir: row[keyDate] || new Date().toISOString().split('T')[0],
+                        selisih: cleanNum(row[keyClose]) - cleanNum(row[keyPrev])
+                    };
+                }).filter(item => item !== null && item.kode_saham !== 'UNKNOWN');
+
+                if (formattedData.length > 0) {
+                    await uploadToSupabase(formattedData);
+                } else {
+                    showAlert('danger', 'Format CSV tidak cocok. Pastikan pakai file Ringkasan Saham IDX.');
+                }
+            }
+        });
+    });
+}
+
+async function uploadToSupabase(dataSaham) {
+    showAlert('warning', `Mengupload ${dataSaham.length} baris data...`);
     
-    const kode = formKode.value;
-    portfolioModal.hide();
-    showAlert('warning', 'Menghapus...');
-
-    const { error } = await db.from('portfolio')
-        .delete()
-        .match({ user_id: currentUser.id, kode_saham: kode });
+    const { error } = await db
+        .from('data_saham')
+        .upsert(dataSaham, { onConflict: 'kode_saham' }); 
 
     if (error) {
-        showAlert('danger', 'Gagal hapus: ' + error.message);
+        console.error("Upload Error:", error);
+        showAlert('danger', 'Gagal upload: ' + error.message);
     } else {
-        await loadData();
-        showAlert('success', 'Saham dihapus dari portofolio.');
+        showAlert('success', 'Upload Berhasil! Refreshing...');
+        csvInput.value = '';
+        setTimeout(loadData, 1500);
     }
-});
+}
 
 // Helper Alert
 function showAlert(type, msg) {
@@ -299,7 +364,3 @@ function showAlert(type, msg) {
         alertBox.classList.remove('d-none');
     }
 }
-
-// Fitur CSV Upload (Tetap ada, disingkat disini agar muat, paste kode lama jika perlu atau biarkan kosong jika fokus portfolio)
-const csvInput = document.getElementById('csv-file-input');
-if(csvInput) { /* ...Paste logika CSV PapaParse dari kode sebelumnya disini... */ }
