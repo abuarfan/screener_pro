@@ -42,7 +42,8 @@ if(btnLogout) {
 async function loadData() {
     showAlert('primary', 'Sinkronisasi data...');
     
-    const marketReq = db.from('data_saham').select('*').order('kode_saham', { ascending: true }).limit(1000);
+    // Ambil semua kolom agar tidak ada yg miss saat di render
+    const marketReq = db.from('data_saham').select('*').order('kode_saham', { ascending: true }).limit(2000);
     const portfolioReq = db.from('portfolio').select('*');
 
     const [marketRes, portfolioRes] = await Promise.all([marketReq, portfolioReq]);
@@ -57,7 +58,7 @@ async function loadData() {
 
     applyFilterAndRender();
     
-    if(allStocks.length === 0) showAlert('warning', 'Data kosong. Upload CSV IDX.');
+    if(allStocks.length === 0) showAlert('warning', 'Data kosong. Upload CSV IDX (Ringkasan Saham).');
     else showAlert('success', `Data: ${allStocks.length} Emiten.`);
 }
 
@@ -218,7 +219,7 @@ btnDelete?.addEventListener('click', async () => {
 });
 
 // ==========================================
-// 7. CSV UPLOAD (COMPLETE MAPPING)
+// 7. CSV UPLOAD (FULL MAPPING)
 // ==========================================
 const csvInput = document.getElementById('csv-file-input');
 if (csvInput) {
@@ -226,98 +227,89 @@ if (csvInput) {
         const file = event.target.files[0];
         if (!file) return;
 
-        showAlert('info', 'Membaca CSV...');
+        showAlert('info', 'Parsing CSV (Mode Lengkap)...');
 
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
             complete: async function(results) {
                 const rawData = results.data;
-                
-                // MAPPING LENGKAP AGAR DATA TIDAK NULL
+                console.log("Header CSV:", results.meta.fields);
+
                 const formattedData = rawData.map(row => {
-                    // Helper case-insensitive
-                    const findKey = (keys) => Object.keys(row).find(k => keys.some(w => k.toLowerCase().trim() === w.toLowerCase()));
+                    // Helper untuk mencari nama kolom yang pas (Case Insensitive & Trimmed)
+                    const getVal = (headerCandidates) => {
+                        const key = Object.keys(row).find(k => headerCandidates.some(c => c.toLowerCase() === k.trim().toLowerCase()));
+                        return key ? row[key] : null;
+                    };
 
-                    // Cari Key berdasarkan Header CSV Anda
-                    const kKode = findKey(['Kode Saham', 'Kode']) || 'Kode Saham';
-                    const kNama = findKey(['Nama Perusahaan', 'Nama']) || 'Nama Perusahaan';
-                    
-                    // Harga
-                    const kClose = findKey(['Penutupan', 'Close']) || 'Penutupan';
-                    const kPrev = findKey(['Sebelumnya', 'Previous']) || 'Sebelumnya';
-                    const kOpen = findKey(['Open Price', 'Open']) || 'Open Price';
-                    const kHigh = findKey(['Tertinggi', 'High']) || 'Tertinggi';
-                    const kLow = findKey(['Terendah', 'Low']) || 'Terendah';
-                    
-                    // Market Data
-                    const kVol = findKey(['Volume']) || 'Volume';
-                    const kVal = findKey(['Nilai', 'Value']) || 'Nilai';
-                    const kFreq = findKey(['Frekuensi', 'Frequency']) || 'Frekuensi';
-                    
-                    // Bid/Offer
-                    const kBid = findKey(['Bid']) || 'Bid';
-                    const kBidVol = findKey(['Bid Volume']) || 'Bid Volume';
-                    const kOffer = findKey(['Offer']) || 'Offer';
-                    const kOfferVol = findKey(['Offer Volume']) || 'Offer Volume';
-                    
-                    // Asing
-                    const kFSell = findKey(['Foreign Sell']) || 'Foreign Sell';
-                    const kFBuy = findKey(['Foreign Buy']) || 'Foreign Buy';
-                    
-                    // Saham Beredar
-                    const kListed = findKey(['Listed Shares']) || 'Listed Shares';
-
-                    // Cleaner Angka (hapus koma)
+                    // Fungsi bersih-bersih angka
                     const clean = (val) => {
                         if (!val) return 0;
                         if (typeof val === 'number') return val;
-                        // Hapus karakter non-angka kecuali titik/minus
-                        return parseFloat(val.toString().replace(/,/g, '')) || 0;
+                        // Hapus koma, tapi biarkan titik decimal (jika ada) dan tanda minus
+                        let s = val.toString().replace(/,/g, '').trim(); 
+                        if (s === '-' || s === '') return 0;
+                        return parseFloat(s) || 0;
                     };
 
-                    if(!row[kKode]) return null; // Skip baris kosong
+                    // Skip jika tidak ada kode saham
+                    const kode = getVal(['Kode Saham', 'Kode', 'Code']);
+                    if (!kode) return null;
 
-                    // Construct Object Sesuai Struktur Database Supabase
+                    // MAPPING ONE-BY-ONE SESUAI SQL & CSV HEADER
                     return {
-                        kode_saham: row[kKode],
-                        nama_perusahaan: row[kNama] || '',
-                        
-                        // Harga
-                        penutupan: clean(row[kClose]),
-                        sebelumnya: clean(row[kPrev]),
-                        open_price: clean(row[kOpen]),
-                        tertinggi: clean(row[kHigh]),
-                        terendah: clean(row[kLow]),
-                        selisih: clean(row[kClose]) - clean(row[kPrev]),
+                        // Kunci Utama
+                        kode_saham: kode,
+                        nama_perusahaan: getVal(['Nama Perusahaan', 'Nama']),
+                        remarks: getVal(['Remarks']), // String
+                        no: parseInt(getVal(['No'])) || null,
 
-                        // Transaksi
-                        volume: clean(row[kVol]),
-                        nilai: clean(row[kVal]),
-                        frekuensi: clean(row[kFreq]),
+                        // Harga Utama
+                        penutupan: clean(getVal(['Penutupan', 'Close'])),
+                        sebelumnya: clean(getVal(['Sebelumnya', 'Previous'])),
+                        open_price: clean(getVal(['Open Price', 'Open'])),
+                        tertinggi: clean(getVal(['Tertinggi', 'High'])),
+                        terendah: clean(getVal(['Terendah', 'Low'])),
+                        first_trade: clean(getVal(['First Trade'])),
+                        selisih: clean(getVal(['Selisih', 'Change'])),
 
-                        // Order Book
-                        bid: clean(row[kBid]),
-                        bid_volume: clean(row[kBidVol]),
-                        offer: clean(row[kOffer]),
-                        offer_volume: clean(row[kOfferVol]),
+                        // Data Transaksi
+                        volume: clean(getVal(['Volume'])),
+                        nilai: clean(getVal(['Nilai', 'Value'])),
+                        frekuensi: clean(getVal(['Frekuensi', 'Frequency'])),
 
-                        // Foreign
-                        foreign_sell: clean(row[kFSell]),
-                        foreign_buy: clean(row[kFBuy]),
-                        
-                        // Shares
-                        listed_shares: clean(row[kListed]),
-                        
-                        // Wajib tanggal hari ini
-                        tanggal_perdagangan_terakhir: new Date().toISOString().split('T')[0]
+                        // Data Order Book (Bid/Offer)
+                        bid: clean(getVal(['Bid'])),
+                        bid_volume: clean(getVal(['Bid Volume'])),
+                        offer: clean(getVal(['Offer'])),
+                        offer_volume: clean(getVal(['Offer Volume'])),
+
+                        // Data Asing
+                        foreign_sell: clean(getVal(['Foreign Sell'])),
+                        foreign_buy: clean(getVal(['Foreign Buy'])),
+
+                        // Indeks & Saham
+                        index_individual: clean(getVal(['Index Individual'])),
+                        weight_for_index: clean(getVal(['Weight For Index'])),
+                        listed_shares: clean(getVal(['Listed Shares'])),
+                        // PERHATIKAN: CSV Anda menulis "Tradeble" (Typo di file asli)
+                        tradeable_shares: clean(getVal(['Tradeble Shares', 'Tradeable Shares'])), 
+
+                        // Pasar Nego (Non Regular)
+                        non_regular_volume: clean(getVal(['Non Regular Volume'])),
+                        non_regular_value: clean(getVal(['Non Regular Value'])),
+                        non_regular_frequency: clean(getVal(['Non Regular Frequency'])),
+
+                        // Tanggal (Default hari ini jika kosong di CSV)
+                        tanggal_perdagangan_terakhir: getVal(['Tanggal Perdagangan Terakhir', 'Date']) || new Date().toISOString().split('T')[0]
                     };
-                }).filter(item => item !== null && item.kode_saham !== 'UNKNOWN');
+                }).filter(item => item !== null);
 
                 if (formattedData.length > 0) {
                     await uploadToSupabase(formattedData);
                 } else {
-                    showAlert('danger', 'Gagal parsing CSV.');
+                    showAlert('danger', 'Gagal membaca CSV. Header tidak dikenali.');
                 }
             }
         });
@@ -325,29 +317,33 @@ if (csvInput) {
 }
 
 async function uploadToSupabase(dataSaham) {
-    showAlert('warning', `Mengupload ${dataSaham.length} data... Mohon tunggu.`);
+    showAlert('warning', `Mengupload ${dataSaham.length} baris data lengkap...`);
     
-    // Pecah menjadi batch agar tidak timeout (karena kolomnya banyak)
-    // Supabase kadang menolak request yang terlalu besar sekaligus
-    const batchSize = 100;
-    let hasError = false;
+    // BATCHING UPLOAD (Pecah 50 baris per request agar Supabase tidak timeout karena kolom banyak)
+    const batchSize = 50; 
+    let errorCount = 0;
 
     for (let i = 0; i < dataSaham.length; i += batchSize) {
         const batch = dataSaham.slice(i, i + batchSize);
+        
+        // Update status loading biar user tau progresnya
+        const percent = Math.round((i / dataSaham.length) * 100);
+        showAlert('warning', `Upload Progress: ${percent}% ...`);
+
         const { error } = await db.from('data_saham').upsert(batch, { onConflict: 'kode_saham' });
         
         if (error) {
             console.error("Batch Error:", error);
-            hasError = true;
-            showAlert('danger', 'Gagal di batch ' + i + ': ' + error.message);
-            break;
+            errorCount++;
         }
     }
 
-    if (!hasError) {
-        showAlert('success', 'Upload Selesai! Data Lengkap.');
+    if (errorCount === 0) {
+        showAlert('success', 'Upload Selesai! Semua kolom terisi.');
         csvInput.value = '';
-        setTimeout(loadData, 1500);
+        setTimeout(loadData, 1000);
+    } else {
+        showAlert('danger', `Upload selesai dengan ${errorCount} batch error. Cek console.`);
     }
 }
 
