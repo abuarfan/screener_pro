@@ -317,33 +317,77 @@ if (csvInput) {
 }
 
 async function uploadToSupabase(dataSaham) {
-    showAlert('warning', `Mengupload ${dataSaham.length} baris data lengkap...`);
+    // Tampilkan pesan loading
+    showAlert('warning', `Sedang memproses ${dataSaham.length} data...`);
     
-    // BATCHING UPLOAD (Pecah 50 baris per request agar Supabase tidak timeout karena kolom banyak)
+    // ===============================================
+    // BAGIAN 1: UPDATE SNAPSHOT (Tabel Utama)
+    // ===============================================
+    // Ini agar Dashboard menampilkan data hari ini
     const batchSize = 50; 
     let errorCount = 0;
-
+    
+    // Kita pakai loop batching agar tidak timeout
     for (let i = 0; i < dataSaham.length; i += batchSize) {
         const batch = dataSaham.slice(i, i + batchSize);
         
-        // Update status loading biar user tau progresnya
-        const percent = Math.round((i / dataSaham.length) * 100);
-        showAlert('warning', `Upload Progress: ${percent}% ...`);
+        // Update Progress Bar di Alert
+        const percent = Math.round((i / dataSaham.length) * 50); // 0-50% progress
+        showAlert('warning', `Upload Data Terkini: ${percent}% ...`);
 
         const { error } = await db.from('data_saham').upsert(batch, { onConflict: 'kode_saham' });
-        
         if (error) {
-            console.error("Batch Error:", error);
+            console.error("Error Snapshot:", error);
             errorCount++;
         }
     }
 
+    // ===============================================
+    // BAGIAN 2: ARSIP HISTORICAL (Tabel History)
+    // ===============================================
+    // Kita siapkan data khusus untuk tabel history (hanya kolom yg diperlukan)
+    const historyData = dataSaham.map(item => ({
+        kode_saham: item.kode_saham,
+        tanggal_perdagangan_terakhir: item.tanggal_perdagangan_terakhir,
+        open_price: item.open_price,
+        tertinggi: item.tertinggi,
+        terendah: item.terendah,
+        penutupan: item.penutupan,
+        volume: item.volume,
+        nilai: item.nilai,
+        frekuensi: item.frekuensi,
+        foreign_buy: item.foreign_buy,
+        foreign_sell: item.foreign_sell
+    }));
+
+    for (let i = 0; i < historyData.length; i += batchSize) {
+        const batch = historyData.slice(i, i + batchSize);
+        
+        // Update Progress Bar (50-100%)
+        const percent = 50 + Math.round((i / historyData.length) * 50);
+        showAlert('warning', `Arsip History: ${percent}% ...`);
+
+        // Upsert ke history_saham (Kunci: kode + tanggal)
+        const { error } = await db.from('history_saham').upsert(batch, { 
+            onConflict: 'kode_saham, tanggal_perdagangan_terakhir' 
+        });
+        
+        if (error) {
+            console.error("Error History:", error);
+            errorCount++;
+        }
+    }
+
+    // ===============================================
+    // SELESAI
+    // ===============================================
     if (errorCount === 0) {
-        showAlert('success', 'Upload Selesai! Semua kolom terisi.');
-        csvInput.value = '';
-        setTimeout(loadData, 1000);
+        showAlert('success', 'SUKSES! Data Snapshot diperbarui & History diarsipkan.');
+        const csvInput = document.getElementById('csv-file-input');
+        if(csvInput) csvInput.value = '';
+        setTimeout(loadData, 1500);
     } else {
-        showAlert('danger', `Upload selesai dengan ${errorCount} batch error. Cek console.`);
+        showAlert('danger', `Selesai dengan ${errorCount} batch error. Cek Console.`);
     }
 }
 
