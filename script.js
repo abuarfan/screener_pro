@@ -25,7 +25,6 @@ async function checkSession() {
 }
 checkSession();
 
-// Logout
 const btnLogout = document.getElementById('btn-logout');
 if(btnLogout) {
     btnLogout.addEventListener('click', async () => {
@@ -42,7 +41,6 @@ if(btnLogout) {
 async function loadData() {
     showAlert('primary', 'Sinkronisasi data...');
     
-    // Ambil semua kolom agar tidak ada yg miss saat di render
     const marketReq = db.from('data_saham').select('*').order('kode_saham', { ascending: true }).limit(2000);
     const portfolioReq = db.from('portfolio').select('*');
 
@@ -58,7 +56,7 @@ async function loadData() {
 
     applyFilterAndRender();
     
-    if(allStocks.length === 0) showAlert('warning', 'Data kosong. Upload CSV IDX (Ringkasan Saham).');
+    if(allStocks.length === 0) showAlert('warning', 'Data kosong. Upload CSV Ringkasan Saham.');
     else showAlert('success', `Data: ${allStocks.length} Emiten.`);
 }
 
@@ -92,27 +90,56 @@ function analyzeStock(stock, ownedData) {
     const change = close - prev;
     const chgPercent = prev === 0 ? 0 : (change / prev) * 100;
 
+    // --- ANALISA MARKET (Sinyal Umum) ---
     let signal = 'NEUTRAL';
     let powerScore = 50;
 
     if (chgPercent >= 1) { signal = 'BUY'; powerScore = 75 + chgPercent; }
     else if (chgPercent <= -1) { signal = 'SELL'; powerScore = 25 + chgPercent; }
-
     powerScore = Math.min(Math.max(Math.round(powerScore), 0), 100);
 
+    // --- ANALISA PORTOFOLIO (Personal) ---
     let portfolioInfo = null;
+    let actionStatus = ''; // Status Aksi (TP/CL)
+
     if (ownedData) {
         const avgPrice = Number(ownedData.avg_price);
         const lots = Number(ownedData.lots);
+        const tp = Number(ownedData.target_price) || 0; // Ambil TP
+        const cl = Number(ownedData.stop_loss) || 0;    // Ambil CL
+        
         const marketVal = close * lots * 100; 
         const buyVal = avgPrice * lots * 100;
         const plVal = marketVal - buyVal;
         const plPercent = (plVal / buyVal) * 100;
 
-        portfolioInfo = { avg: avgPrice, lots: lots, plVal: plVal, plPercent: plPercent };
+        // Logika Status Aksi
+        if (tp > 0 && close >= tp) actionStatus = 'DONE TP 💰';
+        else if (cl > 0 && close <= cl) actionStatus = 'HIT CL ⚠️';
+        else if (plPercent > 0) actionStatus = 'HOLD 🟢';
+        else actionStatus = 'HOLD 🔴';
+
+        portfolioInfo = { 
+            avg: avgPrice, 
+            lots: lots, 
+            tp: tp, 
+            cl: cl, 
+            notes: ownedData.notes,
+            plVal: plVal, 
+            plPercent: plPercent,
+            status: actionStatus
+        };
     }
 
-    return { ...stock, change, chgPercent, signal, powerScore, isOwned: !!ownedData, portfolio: portfolioInfo };
+    return { 
+        ...stock, 
+        change, 
+        chgPercent, 
+        signal, 
+        powerScore, 
+        isOwned: !!ownedData, 
+        portfolio: portfolioInfo 
+    };
 }
 
 // ==========================================
@@ -130,18 +157,44 @@ function renderTable(data) {
         const fmtDec = (n) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(n);
 
         let metricHtml = '';
+        let badgeHtml = '';
+
         if (currentFilter === 'OWNED' && item.isOwned) {
+            // MODE PORTOFOLIO: Tampilkan P/L dan Status Aksi
             const pl = item.portfolio.plPercent;
             const color = pl >= 0 ? 'text-success' : 'text-danger';
-            metricHtml = `<div class="${color} fw-bold">${pl >= 0 ? '+' : ''}${fmtDec(pl)}%</div><small class="text-muted" style="font-size:10px">Avg: ${fmt(item.portfolio.avg)}</small>`;
+            
+            metricHtml = `
+                <div class="${color} fw-bold">${pl >= 0 ? '+' : ''}${fmtDec(pl)}%</div>
+                <small class="text-muted" style="font-size:10px">
+                    Avg: ${fmt(item.portfolio.avg)} <br>
+                    TP: ${item.portfolio.tp || '-'} | CL: ${item.portfolio.cl || '-'}
+                </small>
+            `;
+
+            // Badge Status Aksi (TP/CL/Hold)
+            let statusColor = 'bg-secondary';
+            if (item.portfolio.status.includes('TP')) statusColor = 'bg-warning text-dark';
+            if (item.portfolio.status.includes('CL')) statusColor = 'bg-dark';
+            if (item.portfolio.status === 'HOLD 🟢') statusColor = 'bg-success';
+            if (item.portfolio.status === 'HOLD 🔴') statusColor = 'bg-danger';
+
+            badgeHtml = `<span class="badge ${statusColor}">${item.portfolio.status}</span>`;
+            
+            // Tampilkan notes jika ada (tooltip sederhana)
+            if(item.portfolio.notes) {
+                badgeHtml += `<br><small class="text-muted d-block text-truncate" style="max-width: 80px;">📝 ${item.portfolio.notes}</small>`;
+            }
+
         } else {
+            // MODE BIASA: Tampilkan Chg% dan Sinyal Market
             const color = item.change >= 0 ? 'text-success' : 'text-danger';
             metricHtml = `<div class="${color} fw-bold">${item.change > 0 ? '+' : ''}${fmtDec(item.chgPercent)}%</div>`;
+            
+            if(item.signal === 'BUY') badgeHtml = `<span class="badge bg-success">BUY</span>`;
+            else if(item.signal === 'SELL') badgeHtml = `<span class="badge bg-danger">SELL</span>`;
+            else badgeHtml = `<span class="badge bg-secondary">WAIT</span>`;
         }
-
-        let signalBadge = `<span class="badge bg-secondary">WAIT</span>`;
-        if(item.signal === 'BUY') signalBadge = `<span class="badge bg-success">BUY</span>`;
-        if(item.signal === 'SELL') signalBadge = `<span class="badge bg-danger">SELL</span>`;
 
         const btnClass = item.isOwned ? 'btn-primary' : 'btn-outline-primary';
         const btnIcon = item.isOwned ? '✏️' : '+';
@@ -150,7 +203,7 @@ function renderTable(data) {
             <td class="fw-bold">${item.kode_saham}</td>
             <td>${fmt(item.penutupan)}</td>
             <td class="text-end">${metricHtml}</td>
-            <td class="text-center">${signalBadge}</td>
+            <td class="text-center">${badgeHtml}</td>
             <td class="text-center">
                  <div class="progress" style="height: 5px; width: 50px; margin: auto;">
                     <div class="progress-bar ${item.powerScore > 50 ? 'bg-success' : 'bg-danger'}" style="width: ${item.powerScore}%"></div>
@@ -168,7 +221,7 @@ function renderTable(data) {
 }
 
 // ==========================================
-// 6. MODAL & SAVE
+// 6. MODAL & SAVE PORTOFOLIO
 // ==========================================
 let portfolioModal; 
 try { portfolioModal = new bootstrap.Modal(document.getElementById('portfolioModal')); } catch(e) {}
@@ -176,6 +229,10 @@ try { portfolioModal = new bootstrap.Modal(document.getElementById('portfolioMod
 const formKode = document.getElementById('input-kode');
 const formAvg = document.getElementById('input-avg');
 const formLots = document.getElementById('input-lots');
+const formTp = document.getElementById('input-tp'); // Baru
+const formCl = document.getElementById('input-cl'); // Baru
+const formNotes = document.getElementById('input-notes'); // Baru
+
 const labelModalKode = document.getElementById('modal-kode-saham');
 const btnDelete = document.getElementById('btn-delete-portfolio');
 
@@ -185,13 +242,22 @@ window.openPortfolioModal = (kode) => {
 
     labelModalKode.innerText = kode;
     formKode.value = kode;
+    
     if (owned) {
+        // Mode Edit
         formAvg.value = owned.avg_price;
         formLots.value = owned.lots;
+        formTp.value = owned.target_price || ''; // Load TP
+        formCl.value = owned.stop_loss || '';    // Load CL
+        formNotes.value = owned.notes || '';     // Load Notes
         if(btnDelete) btnDelete.style.display = 'block';
     } else {
+        // Mode Baru
         formAvg.value = stock.penutupan;
         formLots.value = 1;
+        formTp.value = '';
+        formCl.value = '';
+        formNotes.value = '';
         if(btnDelete) btnDelete.style.display = 'none';
     }
     portfolioModal.show();
@@ -199,73 +265,66 @@ window.openPortfolioModal = (kode) => {
 
 document.getElementById('portfolio-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    showAlert('info', 'Menyimpan...');
+    showAlert('info', 'Menyimpan rencana trading...');
     portfolioModal.hide();
+
     const { error } = await db.from('portfolio').upsert({
         user_id: currentUser.id,
         kode_saham: formKode.value,
         avg_price: formAvg.value,
-        lots: formLots.value
+        lots: formLots.value,
+        target_price: formTp.value || 0, // Simpan TP
+        stop_loss: formCl.value || 0,    // Simpan CL
+        notes: formNotes.value           // Simpan Notes
     }, { onConflict: 'user_id, kode_saham' });
+
     if (error) showAlert('danger', error.message);
-    else { await loadData(); showAlert('success', 'Tersimpan!'); }
+    else { await loadData(); showAlert('success', 'Portofolio & Plan tersimpan!'); }
 });
 
 btnDelete?.addEventListener('click', async () => {
-    if(!confirm("Hapus?")) return;
+    if(!confirm("Hapus dari portofolio?")) return;
     portfolioModal.hide();
     const { error } = await db.from('portfolio').delete().match({ user_id: currentUser.id, kode_saham: formKode.value });
     if(!error) { await loadData(); showAlert('success', 'Dihapus.'); }
 });
 
 // ==========================================
-// 7. CSV UPLOAD (FULL MAPPING)
+// 7. CSV UPLOAD (FULL MAPPING) - Tetap sama
 // ==========================================
 const csvInput = document.getElementById('csv-file-input');
 if (csvInput) {
     csvInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (!file) return;
-
-        showAlert('info', 'Parsing CSV (Mode Lengkap)...');
+        showAlert('info', 'Parsing CSV...');
 
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
             complete: async function(results) {
                 const rawData = results.data;
-                console.log("Header CSV:", results.meta.fields);
-
                 const formattedData = rawData.map(row => {
-                    // Helper untuk mencari nama kolom yang pas (Case Insensitive & Trimmed)
-                    const getVal = (headerCandidates) => {
-                        const key = Object.keys(row).find(k => headerCandidates.some(c => c.toLowerCase() === k.trim().toLowerCase()));
+                    const getVal = (candidates) => {
+                        const key = Object.keys(row).find(k => candidates.some(c => c.toLowerCase() === k.trim().toLowerCase()));
                         return key ? row[key] : null;
                     };
-
-                    // Fungsi bersih-bersih angka
                     const clean = (val) => {
                         if (!val) return 0;
                         if (typeof val === 'number') return val;
-                        // Hapus koma, tapi biarkan titik decimal (jika ada) dan tanda minus
                         let s = val.toString().replace(/,/g, '').trim(); 
                         if (s === '-' || s === '') return 0;
                         return parseFloat(s) || 0;
                     };
 
-                    // Skip jika tidak ada kode saham
                     const kode = getVal(['Kode Saham', 'Kode', 'Code']);
                     if (!kode) return null;
 
-                    // MAPPING ONE-BY-ONE SESUAI SQL & CSV HEADER
                     return {
-                        // Kunci Utama
                         kode_saham: kode,
                         nama_perusahaan: getVal(['Nama Perusahaan', 'Nama']),
-                        remarks: getVal(['Remarks']), // String
+                        remarks: getVal(['Remarks']),
                         no: parseInt(getVal(['No'])) || null,
-
-                        // Harga Utama
                         penutupan: clean(getVal(['Penutupan', 'Close'])),
                         sebelumnya: clean(getVal(['Sebelumnya', 'Previous'])),
                         open_price: clean(getVal(['Open Price', 'Open'])),
@@ -273,79 +332,48 @@ if (csvInput) {
                         terendah: clean(getVal(['Terendah', 'Low'])),
                         first_trade: clean(getVal(['First Trade'])),
                         selisih: clean(getVal(['Selisih', 'Change'])),
-
-                        // Data Transaksi
                         volume: clean(getVal(['Volume'])),
                         nilai: clean(getVal(['Nilai', 'Value'])),
                         frekuensi: clean(getVal(['Frekuensi', 'Frequency'])),
-
-                        // Data Order Book (Bid/Offer)
                         bid: clean(getVal(['Bid'])),
                         bid_volume: clean(getVal(['Bid Volume'])),
                         offer: clean(getVal(['Offer'])),
                         offer_volume: clean(getVal(['Offer Volume'])),
-
-                        // Data Asing
                         foreign_sell: clean(getVal(['Foreign Sell'])),
                         foreign_buy: clean(getVal(['Foreign Buy'])),
-
-                        // Indeks & Saham
                         index_individual: clean(getVal(['Index Individual'])),
                         weight_for_index: clean(getVal(['Weight For Index'])),
                         listed_shares: clean(getVal(['Listed Shares'])),
-                        // PERHATIKAN: CSV Anda menulis "Tradeble" (Typo di file asli)
                         tradeable_shares: clean(getVal(['Tradeble Shares', 'Tradeable Shares'])), 
-
-                        // Pasar Nego (Non Regular)
                         non_regular_volume: clean(getVal(['Non Regular Volume'])),
                         non_regular_value: clean(getVal(['Non Regular Value'])),
                         non_regular_frequency: clean(getVal(['Non Regular Frequency'])),
-
-                        // Tanggal (Default hari ini jika kosong di CSV)
                         tanggal_perdagangan_terakhir: getVal(['Tanggal Perdagangan Terakhir', 'Date']) || new Date().toISOString().split('T')[0]
                     };
                 }).filter(item => item !== null);
 
-                if (formattedData.length > 0) {
-                    await uploadToSupabase(formattedData);
-                } else {
-                    showAlert('danger', 'Gagal membaca CSV. Header tidak dikenali.');
-                }
+                if (formattedData.length > 0) uploadToSupabase(formattedData);
+                else showAlert('danger', 'Gagal membaca CSV.');
             }
         });
     });
 }
 
 async function uploadToSupabase(dataSaham) {
-    // Tampilkan pesan loading
     showAlert('warning', `Sedang memproses ${dataSaham.length} data...`);
-    
-    // ===============================================
-    // BAGIAN 1: UPDATE SNAPSHOT (Tabel Utama)
-    // ===============================================
-    // Ini agar Dashboard menampilkan data hari ini
     const batchSize = 50; 
     let errorCount = 0;
     
-    // Kita pakai loop batching agar tidak timeout
+    // 1. UPDATE SNAPSHOT
     for (let i = 0; i < dataSaham.length; i += batchSize) {
         const batch = dataSaham.slice(i, i + batchSize);
-        
-        // Update Progress Bar di Alert
-        const percent = Math.round((i / dataSaham.length) * 50); // 0-50% progress
+        const percent = Math.round((i / dataSaham.length) * 50);
         showAlert('warning', `Upload Data Terkini: ${percent}% ...`);
-
         const { error } = await db.from('data_saham').upsert(batch, { onConflict: 'kode_saham' });
-        if (error) {
-            console.error("Error Snapshot:", error);
-            errorCount++;
-        }
+        if (error) errorCount++;
     }
 
-    // ===============================================
-    // BAGIAN 2: ARSIP HISTORICAL (Tabel History)
-    // ===============================================
-    // Kita siapkan data khusus untuk tabel history (hanya kolom yg diperlukan)
+    // 2. ARSIP HISTORY
     const historyData = dataSaham.map(item => ({
         kode_saham: item.kode_saham,
         tanggal_perdagangan_terakhir: item.tanggal_perdagangan_terakhir,
@@ -362,36 +390,22 @@ async function uploadToSupabase(dataSaham) {
 
     for (let i = 0; i < historyData.length; i += batchSize) {
         const batch = historyData.slice(i, i + batchSize);
-        
-        // Update Progress Bar (50-100%)
         const percent = 50 + Math.round((i / historyData.length) * 50);
         showAlert('warning', `Arsip History: ${percent}% ...`);
-
-        // Upsert ke history_saham (Kunci: kode + tanggal)
-        const { error } = await db.from('history_saham').upsert(batch, { 
-            onConflict: 'kode_saham, tanggal_perdagangan_terakhir' 
-        });
-        
-        if (error) {
-            console.error("Error History:", error);
-            errorCount++;
-        }
+        const { error } = await db.from('history_saham').upsert(batch, { onConflict: 'kode_saham, tanggal_perdagangan_terakhir' });
+        if (error) errorCount++;
     }
 
-    // ===============================================
-    // SELESAI
-    // ===============================================
     if (errorCount === 0) {
-        showAlert('success', 'SUKSES! Data Snapshot diperbarui & History diarsipkan.');
+        showAlert('success', 'SUKSES! Data Snapshot & History diperbarui.');
         const csvInput = document.getElementById('csv-file-input');
         if(csvInput) csvInput.value = '';
         setTimeout(loadData, 1500);
     } else {
-        showAlert('danger', `Selesai dengan ${errorCount} batch error. Cek Console.`);
+        showAlert('danger', `Selesai dengan ${errorCount} error.`);
     }
 }
 
-// Helper Alert
 function showAlert(type, msg) {
     const alertBox = document.getElementById('status-alert');
     if(alertBox) {
