@@ -595,20 +595,57 @@ if (csvInput) {
 }
 
 async function uploadToSupabase(dataSaham) {
-    showAlert('warning', `Memproses ${dataSaham.length} data...`);
+    showAlert('warning', `Memeriksa tanggal data...`);
+    
+    // --- LANGKAH 1: CEK TANGGAL ---
+    let shouldUpdateSnapshot = true; // Defaultnya update
+    
+    if (dataSaham.length > 0) {
+        // Ambil tanggal dari baris pertama CSV
+        const csvDateStr = dataSaham[0].tanggal_perdagangan_terakhir; 
+        const csvDate = new Date(csvDateStr).getTime();
+
+        // Ambil tanggal paling baru dari Database
+        const { data: dbData, error } = await db
+            .from('data_saham')
+            .select('tanggal_perdagangan_terakhir')
+            .order('tanggal_perdagangan_terakhir', { ascending: false })
+            .limit(1);
+
+        if (!error && dbData && dbData.length > 0) {
+            const dbDateStr = dbData[0].tanggal_perdagangan_terakhir;
+            const dbDate = new Date(dbDateStr).getTime();
+
+            // BANDINGKAN: Jika data CSV lebih TUA dari data DB
+            if (csvDate < dbDate) {
+                shouldUpdateSnapshot = false;
+                showAlert('info', `⚠️ <b>Mode Arsip:</b> Data yang diupload (${csvDateStr}) lebih lama dari data pasar saat ini (${dbDateStr}).<br>Tabel utama TIDAK akan diupdate, hanya disimpan ke History.`);
+                // Beri jeda 3 detik biar user sempat baca notifnya
+                await new Promise(r => setTimeout(r, 3000));
+            } else {
+                showAlert('info', `✅ Data Baru (${csvDateStr}). Mengupdate pasar...`);
+            }
+        }
+    }
+
     const batchSize = 50; 
     let errorCount = 0;
     let errorMsg = '';
     
-    // Snapshot
-    for (let i = 0; i < dataSaham.length; i += batchSize) {
-        const batch = dataSaham.slice(i, i + batchSize);
-        const percent = Math.round((i / dataSaham.length) * 50);
-        showAlert('warning', `Upload Data: ${percent}% ...`);
-        const { error } = await db.from('data_saham').upsert(batch, { onConflict: 'kode_saham' });
-        if (error) { errorCount++; errorMsg = error.message; }
+    // --- LANGKAH 2: UPDATE SNAPSHOT (HANYA JIKA DATA BARU) ---
+    if (shouldUpdateSnapshot) {
+        for (let i = 0; i < dataSaham.length; i += batchSize) {
+            const batch = dataSaham.slice(i, i + batchSize);
+            const percent = Math.round((i / dataSaham.length) * 50);
+            showAlert('warning', `Update Pasar (Snapshot): ${percent}% ...`);
+            
+            const { error } = await db.from('data_saham').upsert(batch, { onConflict: 'kode_saham' });
+            if (error) { errorCount++; errorMsg = error.message; }
+        }
     }
-    // History
+
+    // --- LANGKAH 3: UPDATE HISTORY (SELALU JALAN - UNTUK ARSIP) ---
+    // Kita tetap simpan ke history walaupun datanya jadul, buat menuhin chart.
     const historyData = dataSaham.map(item => ({
         kode_saham: item.kode_saham,
         tanggal_perdagangan_terakhir: item.tanggal_perdagangan_terakhir,
@@ -622,18 +659,32 @@ async function uploadToSupabase(dataSaham) {
         foreign_buy: item.foreign_buy,
         foreign_sell: item.foreign_sell
     }));
+
     for (let i = 0; i < historyData.length; i += batchSize) {
         const batch = historyData.slice(i, i + batchSize);
-        const percent = 50 + Math.round((i / historyData.length) * 50);
+        // Kalau snapshot di-skip, progress bar history mulai dari 0 sampai 100
+        // Kalau snapshot jalan, history mulai dari 50 sampai 100
+        const startPct = shouldUpdateSnapshot ? 50 : 0;
+        const divider = shouldUpdateSnapshot ? 50 : 100;
+        
+        const percent = startPct + Math.round((i / historyData.length) * divider);
         showAlert('warning', `Arsip History: ${percent}% ...`);
+        
         const { error } = await db.from('history_saham').upsert(batch, { onConflict: 'kode_saham, tanggal_perdagangan_terakhir' });
         if (error) { errorCount++; errorMsg = error.message; }
     }
+
+    // --- FINALISASI ---
     if (errorCount === 0) {
-        showAlert('success', 'Upload Selesai.');
+        if (shouldUpdateSnapshot) {
+            showAlert('success', 'SUKSES! Data Pasar & History diperbarui.');
+        } else {
+            showAlert('success', 'SUKSES! Data lama berhasil diarsipkan ke History (Data pasar tidak berubah).');
+        }
+        
         const csvInput = document.getElementById('csv-file-input');
         if(csvInput) csvInput.value = '';
-        setTimeout(loadData, 1500);
+        setTimeout(loadData, 2000);
     } else {
         showAlert('danger', `Gagal! Terjadi ${errorCount} error: ${errorMsg}`);
     }
