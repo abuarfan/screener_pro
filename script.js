@@ -642,3 +642,61 @@ async function loadAndRenderChart(kode) {
     priceChart = new ApexCharts(chartContainer, options);
     priceChart.render();
 }
+
+// ==========================================
+// 10. MARKET OVERVIEW WIDGET
+// ==========================================
+function renderMarketOverview(data) {
+    const widgetArea = document.getElementById('market-overview-area');
+    const listGainers = document.getElementById('list-gainers');
+    const listLosers = document.getElementById('list-losers');
+    const listVolume = document.getElementById('list-volume');
+
+    if (!data || data.length === 0) {
+        if(widgetArea) widgetArea.style.display = 'none';
+        return;
+    }
+
+    // Tampilkan Area Widget
+    if(widgetArea) widgetArea.style.display = 'flex';
+
+    // Helper Formatter
+    const fmt = (n) => new Intl.NumberFormat('id-ID').format(n);
+    const fmtDec = (n) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(n);
+
+    // 1. TOP GAINERS (Urutkan chgPercent Terbesar ke Terkecil)
+    const topGainers = [...data]
+        .sort((a, b) => b.chgPercent - a.chgPercent)
+        .slice(0, 5); // Ambil 5 teratas
+
+    listGainers.innerHTML = topGainers.map(s => `
+        <li class="list-group-item d-flex justify-content-between align-items-center py-1">
+            <span class="fw-bold cursor-pointer text-primary" onclick="openPortfolioModal('${s.kode_saham}')">${s.kode_saham}</span>
+            <span class="text-success fw-bold">+${fmtDec(s.chgPercent)}%</span>
+        </li>
+    `).join('');
+
+    // 2. TOP LOSERS (Urutkan chgPercent Terkecil ke Terbesar)
+    const topLosers = [...data]
+        .sort((a, b) => a.chgPercent - b.chgPercent)
+        .slice(0, 5);
+
+    listLosers.innerHTML = topLosers.map(s => `
+        <li class="list-group-item d-flex justify-content-between align-items-center py-1">
+            <span class="fw-bold cursor-pointer text-primary" onclick="openPortfolioModal('${s.kode_saham}')">${s.kode_saham}</span>
+            <span class="text-danger fw-bold">${fmtDec(s.chgPercent)}%</span>
+        </li>
+    `).join('');
+
+    // 3. TOP VOLUME (Urutkan Volume Terbesar)
+    const topVolume = [...data]
+        .sort((a, b) => b.volume - a.volume)
+        .slice(0, 5);
+
+    listVolume.innerHTML = topVolume.map(s => `
+        <li class="list-group-item d-flex justify-content-between align-items-center py-1">
+            <span class="fw-bold cursor-pointer text-primary" onclick="openPortfolioModal('${s.kode_saham}')">${s.kode_saham}</span>
+            <span class="text-dark" style="font-size:0.85em">${fmt(s.volume)}</span>
+        </li>
+    `).join('');
+}
