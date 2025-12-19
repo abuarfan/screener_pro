@@ -30,7 +30,6 @@ window.openStrategyModal = function() {
     const elMa=document.getElementById('default-ma'), elRsi=document.getElementById('default-rsi');
     const elPreset=document.getElementById('strategy-preset');
     
-    // Default MODERATE jika belum ada
     if(elPreset) elPreset.value = localStorage.getItem('def_preset') || 'moderate';
     if(elTp) elTp.value = localStorage.getItem('def_tp') || '';
     if(elCl) elCl.value = localStorage.getItem('def_cl') || '';
@@ -91,12 +90,24 @@ window.openPortfolioModal = function(kode) {
     const fTp=document.getElementById('input-tp-pct'), fCl=document.getElementById('input-cl-pct');
     const fNote=document.getElementById('input-notes'), fW=document.getElementById('input-watchlist'), btnDel=document.getElementById('btn-delete-portfolio');
 
-    if (owned) {
-        fAvg.value=owned.avg_price; fLot.value=owned.lots; fTp.value=owned.tp_pct||''; fCl.value=owned.cl_pct||'';
-        fNote.value=owned.notes||''; fW.checked=owned.is_watchlist; btnDel.style.display='block';
+    // FIX: Hanya isi form dengan data tersimpan JIKA benar-benar punya Lot (Bukan cuma Watchlist)
+    if (owned && owned.lots > 0) {
+        fAvg.value = owned.avg_price; 
+        fLot.value = owned.lots; 
+        fTp.value = owned.tp_pct || ''; 
+        fCl.value = owned.cl_pct || '';
+        fNote.value = owned.notes || ''; 
+        fW.checked = owned.is_watchlist; 
+        btnDel.style.display = 'block';
     } else {
-        fAvg.value=stock?stock.penutupan:0; fLot.value=1; fTp.value=localStorage.getItem('def_tp')||''; fCl.value=localStorage.getItem('def_cl')||'';
-        fNote.value=''; fW.checked=false; btnDel.style.display='none';
+        // Jika belum punya (atau cuma watchlist), isi dengan Harga Pasar & Strategi Default
+        fAvg.value = stock ? stock.penutupan : 0; 
+        fLot.value = 1; 
+        fTp.value = localStorage.getItem('def_tp') || ''; 
+        fCl.value = localStorage.getItem('def_cl') || '';
+        fNote.value = ''; 
+        fW.checked = owned ? owned.is_watchlist : false; // Tetap centang watchlist jika memang ada di list
+        btnDel.style.display = 'none';
     }
     updateCalc();
     if(portfolioModalInstance) portfolioModalInstance.show();
@@ -126,7 +137,7 @@ checkSession();
 document.getElementById('btn-logout')?.addEventListener('click', async () => { if(confirm("Logout?")) { await db.auth.signOut(); window.location.href='login.html'; } });
 
 // ==========================================
-// 5. CORE LOGIC (LOAD, ANALYZE, FILTER)
+// 5. CORE LOGIC
 // ==========================================
 async function loadData() {
     showAlert('primary', 'Sinkronisasi data...');
@@ -157,7 +168,6 @@ function applyFilterAndRender() {
     else if (currentFilter === 'WATCHLIST') filteredData = processedData.filter(s => s.isWatchlist || s.isOwned);
     else if (currentFilter === 'OWNED') filteredData = processedData.filter(s => s.isOwned);
 
-    // HAPUS Filter Buy (Sesuai request)
     renderTable(filteredData);
 }
 
@@ -199,7 +209,6 @@ function analyzeStock(stock, ownedData) {
         }
     }
     let isSyariah = (stock.syariah_flag && stock.syariah_flag.toString().toLowerCase().includes('y'));
-
     return { ...stock, change, chgPercent, signal, isOwned, isWatchlist, portfolio: portfolioInfo, mcapVal, mcapLabel, netForeign, is_syariah: isSyariah, trendLabel };
 }
 
@@ -213,11 +222,9 @@ function calculateScore(stock) {
     const close = Number(stock.penutupan);
     const open = Number(stock.open_price);
     
-    // Core Momentum
     if(chg > 0.5) score += 20; else if(chg > 0) score += 10;
     if(close > open) score += 10; 
 
-    // Preset Logic
     if (preset === 'aggressive') { 
         if(chg > 2) score += 30; 
         if(Number(stock.frekuensi) > 5000) score += 30; else if(Number(stock.frekuensi) > 1000) score += 10;
@@ -225,7 +232,6 @@ function calculateScore(stock) {
         if(stock.mcapLabel === '🟦 BIG') score += 40; else if(stock.mcapLabel === '🟨 MID') score += 10;
         if(stock.netForeign > 1e9) score += 30; 
     } else { 
-        // MODERATE
         if(stock.mcapLabel !== '⬜ SML') score += 15; 
         if(Number(stock.frekuensi) > 2000) score += 15;
         if(chg > 1) score += 15;
@@ -242,7 +248,6 @@ function renderMarketOverview(data) {
     if (!data || data.length === 0) { if(widgetArea) widgetArea.style.display = 'none'; return; }
     if(widgetArea) widgetArea.style.display = 'block';
 
-    // DEFAULT VIEW: GAINERS
     const view = selectView ? selectView.value : 'gainers';
     const fmtDec=(n)=>new Intl.NumberFormat('id-ID',{maximumFractionDigits:2}).format(n);
     const fmtShort=(n)=>{ if(Math.abs(n)>=1e12)return(n/1e12).toFixed(1)+' T'; if(Math.abs(n)>=1e9)return(n/1e9).toFixed(1)+' M'; return new Intl.NumberFormat('id-ID').format(n); };
@@ -337,7 +342,7 @@ function renderTable(data) {
     if(footer) footer.innerText = `Menampilkan ${data.length} saham.`;
 }
 
-// ... CHART ENGINE (Functions below remain unchanged) ...
+// CHART ENGINE
 const calcSMA = (d, p) => d.length<p ? null : d.slice(d.length-p).reduce((a,b)=>a+b,0)/p;
 const calcStdDev = (d, p) => { if(d.length<p)return 0; const s=d.slice(d.length-p); const m=s.reduce((a,b)=>a+b,0)/p; return Math.sqrt(s.map(x=>Math.pow(x-m,2)).reduce((a,b)=>a+b,0)/p); };
 const calcStoch = (h, l, c, p) => { if(c.length<p)return null; const sl=l.slice(l.length-p), sh=h.slice(h.length-p); return ((c[c.length-1]-Math.min(...sl))/(Math.max(...sh)-Math.min(...sl)))*100; };
@@ -396,7 +401,7 @@ function updateCalc() {
 }
 const ins = ['input-avg','input-tp-pct','input-cl-pct']; ins.forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('input', updateCalc); });
 
-// CSV UPLOAD & SMART UPDATE
+// CSV UPLOAD & CLEANING
 const csvInput = document.getElementById('csv-file-input');
 if (csvInput) {
     csvInput.addEventListener('change', (event) => {
@@ -409,7 +414,6 @@ if (csvInput) {
                 const rawData = results.data;
                 const formattedData = rawData.map(row => {
                     const getVal = (candidates) => { const key = Object.keys(row).find(k => candidates.some(c => c.toLowerCase() === k.trim().toLowerCase())); return key ? row[key] : null; };
-                    // CLEAN FUNCTION (ANTI-NAN)
                     const clean = (val) => {
                         if (!val) return 0;
                         if (typeof val === 'number') return val;
@@ -446,8 +450,6 @@ if (csvInput) {
 }
 async function uploadToSupabase(dataSaham) {
     showAlert('warning', `Memeriksa versi data...`);
-    
-    // SMART UPLOAD LOGIC
     let shouldUpdateSnapshot = true;
     if (dataSaham.length > 0) {
         const csvDateStr = dataSaham[0].tanggal_perdagangan_terakhir; 
@@ -456,7 +458,6 @@ async function uploadToSupabase(dataSaham) {
         if (dbData && dbData.length > 0) {
             const dbDateStr = dbData[0].tanggal_perdagangan_terakhir;
             const dbDate = new Date(dbDateStr).getTime();
-            // Jika CSV < DB, jangan timpa snapshot (Data lama jangan hapus data baru)
             if (csvDate < dbDate) {
                 shouldUpdateSnapshot = false;
                 showAlert('info', `⚠️ Arsip Mode: Data CSV (${csvDateStr}) lebih tua dari DB. Snapshot tidak diupdate.`);
@@ -471,7 +472,6 @@ async function uploadToSupabase(dataSaham) {
         }
     }
     
-    // History selalu diupdate (biar lengkap grafiknya)
     const historyData = dataSaham.map(item => ({
         kode_saham: item.kode_saham, tanggal_perdagangan_terakhir: item.tanggal_perdagangan_terakhir,
         open_price: item.open_price, tertinggi: item.tertinggi, terendah: item.terendah, penutupan: item.penutupan,
