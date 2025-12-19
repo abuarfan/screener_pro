@@ -375,55 +375,80 @@ window.sortTable = (n) => {
 };
 
 // ==========================================
-// 9. CHART & MODAL LOGIC
+// 9. CHART & MODAL LOGIC (REVISI: LEBIH AMAN)
 // ==========================================
 let portfolioModal; 
 let strategyModal;
+
+// Inisialisasi Modal dengan aman
+document.addEventListener('DOMContentLoaded', () => {
+    try { 
+        portfolioModal = new bootstrap.Modal(document.getElementById('portfolioModal')); 
+        strategyModal = new bootstrap.Modal(document.getElementById('strategyModal'));
+    } catch(e) { console.log("Modal belum siap, menunggu interaksi user."); }
+});
+
 const STRATEGIES = {
     'conservative': { tp: 15, cl: 7, desc: "Cocok untuk Swing Trader. Target tinggi, toleransi risiko agak lebar." },
     'moderate':     { tp: 8,  cl: 4, desc: "Seimbang (Risk Reward 1:2). Cocok untuk day trading santai." },
     'aggressive':   { tp: 3,  cl: 2, desc: "Gaya Scalper. Cuan dikit bungkus, rugi dikit buang." }
 };
 
-const inputPreset = document.getElementById('strategy-preset');
-const inputDefTp = document.getElementById('default-tp');
-const inputDefCl = document.getElementById('default-cl');
-const txtStratDesc = document.getElementById('strategy-desc');
-
-// 1. Fungsi saat Dropdown Berubah
+// 1. Fungsi saat Dropdown Berubah (SAFE MODE)
 window.applyStrategyPreset = () => {
-    const val = inputPreset.value;
-    
+    // Ambil elemen LANGSUNG di dalam fungsi agar tidak Null
+    const elPreset = document.getElementById('strategy-preset');
+    const elTp = document.getElementById('default-tp');
+    const elCl = document.getElementById('default-cl');
+    const elDesc = document.getElementById('strategy-desc');
+
+    if (!elPreset || !elTp || !elCl) {
+        console.error("Error: Elemen form strategi tidak ditemukan.");
+        return;
+    }
+
+    const val = elPreset.value;
+    console.log("Preset dipilih:", val); // Debugging
+
     if (val === 'custom') {
-        txtStratDesc.innerText = "Anda menentukan angka sendiri secara manual.";
-        // Tidak mengubah angka input, biarkan user edit
+        elDesc.innerText = "Anda menentukan angka sendiri secara manual.";
     } else {
         const strat = STRATEGIES[val];
         if (strat) {
-            inputDefTp.value = strat.tp;
-            inputDefCl.value = strat.cl;
-            txtStratDesc.innerText = strat.desc;
+            elTp.value = strat.tp;
+            elCl.value = strat.cl;
+            elDesc.innerText = strat.desc;
+            console.log("Set angka:", strat.tp, strat.cl); // Debugging
+        } else {
+            console.warn("Strategi tidak dikenali:", val);
         }
     }
 };
 
 // 2. Buka Modal Strategy (Load Data)
 window.openStrategyModal = () => {
+    const elPreset = document.getElementById('strategy-preset');
+    const elTp = document.getElementById('default-tp');
+    const elCl = document.getElementById('default-cl');
+    const elDesc = document.getElementById('strategy-desc');
+
     // Load angka yang tersimpan
     const savedTp = localStorage.getItem('def_tp');
     const savedCl = localStorage.getItem('def_cl');
-    const savedPreset = localStorage.getItem('def_preset') || 'custom'; // Default custom
+    const savedPreset = localStorage.getItem('def_preset') || 'custom'; 
 
-    // Set nilai ke input
-    if(inputDefTp) inputDefTp.value = savedTp || '';
-    if(inputDefCl) inputDefCl.value = savedCl || '';
-    if(inputPreset) inputPreset.value = savedPreset;
+    // Set nilai ke input jika elemen ada
+    if(elTp) elTp.value = savedTp || '';
+    if(elCl) elCl.value = savedCl || '';
+    if(elPreset) elPreset.value = savedPreset;
     
-    // Update deskripsi sesuai preset yang tersimpan
-    if(savedPreset !== 'custom' && STRATEGIES[savedPreset]) {
-        txtStratDesc.innerText = STRATEGIES[savedPreset].desc;
+    // Update deskripsi
+    if(savedPreset !== 'custom' && STRATEGIES[savedPreset] && elDesc) {
+        elDesc.innerText = STRATEGIES[savedPreset].desc;
     }
 
+    // Pastikan modal instance ada sebelum show
+    if (!strategyModal) strategyModal = new bootstrap.Modal(document.getElementById('strategyModal'));
     strategyModal.show();
 };
 
@@ -431,14 +456,20 @@ window.openStrategyModal = () => {
 document.getElementById('strategy-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
     
-    // Simpan ke Browser
-    localStorage.setItem('def_tp', inputDefTp.value);
-    localStorage.setItem('def_cl', inputDefCl.value);
-    localStorage.setItem('def_preset', inputPreset.value);
-    
-    strategyModal.hide();
-    showAlert('success', `Strategi tersimpan! (TP: ${inputDefTp.value}%, CL: ${inputDefCl.value}%)`);
+    const elTp = document.getElementById('default-tp');
+    const elCl = document.getElementById('default-cl');
+    const elPreset = document.getElementById('strategy-preset');
+
+    if(elTp && elCl && elPreset) {
+        localStorage.setItem('def_tp', elTp.value);
+        localStorage.setItem('def_cl', elCl.value);
+        localStorage.setItem('def_preset', elPreset.value);
+        
+        strategyModal.hide();
+        showAlert('success', `Strategi tersimpan! (TP: ${elTp.value}%, CL: ${elCl.value}%)`);
+    }
 });
+
 // --- CHART ---
 async function loadAndRenderChart(kode) {
     const chartContainer = document.getElementById('price-chart');
