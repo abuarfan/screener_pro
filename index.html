@@ -30,7 +30,7 @@
     <nav class="navbar navbar-dark shadow-sm sticky-top py-2">
         <div class="container d-flex justify-content-between align-items-center">
             <a class="navbar-brand fw-bold text-warning m-0 p-0" href="#" style="font-size: 1.2rem;">
-                SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 9px; vertical-align: middle;">FIXED</span>
+                SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 9px; vertical-align: middle;">FINAL</span>
             </a>
             <div class="d-flex align-items-center gap-2">
                 <a class="nav-link-custom" href="#" onclick="window.openStrategyModal(); return false;">⚙️ STRATEGY</a>
@@ -52,10 +52,10 @@
                         <div class="d-flex align-items-center gap-2" style="max-width: 70%;">
                             <span class="small text-white-50 d-none d-md-inline">Mode:</span>
                             <select id="market-view-select" class="form-select form-select-sm fw-bold bg-secondary text-white border-0" style="cursor:pointer;" onchange="window.triggerRender()">
-                                <option value="ai_picks">🔥 AI Top Picks (Buy Only)</option>
-                                <option value="gainers">🚀 Top Gainers</option>
+                                <option value="gainers" selected>🚀 Top Gainers</option>
                                 <option value="losers">🔻 Top Losers</option>
                                 <option value="volume">🔊 Top Volume</option>
+                                <option value="ai_picks">🔥 AI Top Picks</option>
                                 <option value="frequency">⚡ Top Frequency</option>
                                 <option value="foreign">💰 Foreign Accumulation</option>
                                 <option value="mcap">🏦 Big Market Cap</option>
@@ -78,13 +78,9 @@
                 <div class="card-body p-2 bg-white rounded">
                     <div class="row g-2">
                         <div class="col-md-6 position-relative">
-                            <div class="input-group mb-2"> 
+                            <div class="input-group"> 
                                 <span class="input-group-text bg-light border-end-0">🔍</span>
                                 <input type="text" id="input-search" class="form-control border-start-0" placeholder="Cari Kode / Nama..." autocomplete="off">
-                            </div>
-                            <div class="form-check form-switch ms-1">
-                                <input class="form-check-input" type="checkbox" id="check-buy-only" onclick="window.setFilter(currentFilter)">
-                                <label class="form-check-label small fw-bold text-success" for="check-buy-only">Hanya Tampilkan Sinyal BUY</label>
                             </div>
                             <div id="search-results" class="list-group shadow d-none"></div>
                         </div>
