@@ -23,70 +23,40 @@
             max-height: 200px; overflow-y: auto; position: absolute; width: 100%; z-index: 1060;
         }
 
-        /* --- STICKY CONTROL PANEL (Updated Height) --- */
-        /* Karena Navbar sekarang 2 baris (lebih tinggi), top harus disesuaikan */
+        /* STICKY COMPONENTS */
         .sticky-controls {
-            position: sticky;
-            top: 80px; /* Update: Disesuaikan dengan tinggi navbar baru */
-            z-index: 1040;
-            background-color: #f8f9fa;
-            padding-top: 10px;
-            padding-bottom: 5px;
+            position: sticky; top: 80px; z-index: 1040; background-color: #f8f9fa; padding-top: 10px; padding-bottom: 5px;
         }
-
-        /* --- STICKY FIRST COLUMN --- */
         .table th:first-child {
             position: sticky; left: 0; z-index: 20; background-color: #f8f9fa !important; border-right: 2px solid #dee2e6;
         }
         .table td:first-child {
             position: sticky; left: 0; z-index: 10; background-color: #fff !important; border-right: 2px solid #dee2e6;
         }
-        .table-hover tbody tr:hover td:first-child {
-            background-color: #e9ecef !important;
-        }
+        .table-hover tbody tr:hover td:first-child { background-color: #e9ecef !important; }
 
-        /* --- STYLE BARU: NAVBAR LINK --- */
+        /* NAVBAR LINK */
         .nav-link-custom {
-            color: #d1d1d1;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 0.8rem;
-            letter-spacing: 1px;
-            transition: color 0.2s;
-            cursor: pointer;
+            color: #d1d1d1; text-decoration: none; font-weight: 600; font-size: 0.8rem; letter-spacing: 1px; transition: color 0.2s; cursor: pointer;
         }
-        .nav-link-custom:hover {
-            color: #ffc107; /* Kuning Warning */
-            text-decoration: none;
-        }
-        .nav-separator {
-            color: #6c757d;
-            font-size: 0.8rem;
-            margin: 0 5px;
-        }
+        .nav-link-custom:hover { color: #ffc107; text-decoration: none; }
+        .nav-separator { color: #6c757d; font-size: 0.8rem; margin: 0 5px; }
     </style>
 </head>
 <body class="bg-light">
 
     <nav class="navbar navbar-dark bg-dark shadow-sm sticky-top py-2">
         <div class="container d-flex flex-column align-items-center">
-            
             <a class="navbar-brand fw-bold text-warning m-0 p-0" href="#" style="font-size: 1.3rem;">
                 SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 9px; vertical-align: middle;">BETA</span>
             </a>
-            
             <div class="mt-1 d-flex align-items-center">
                 <a class="nav-link-custom" onclick="openStrategyModal()">STRATEGY</a>
-                
                 <span class="nav-separator">|</span>
-                
                 <a class="nav-link-custom" id="btn-logout">LOGOUT</a>
-                
                 <span class="nav-separator">|</span>
-                
                 <a class="nav-link-custom" onclick="document.getElementById('csv-file-input').click()">UPLOAD</a>
             </div>
-
             <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
         </div>
     </nav>
@@ -173,73 +143,17 @@
             </div>
         </div>
 
-        <div class="modal fade" id="strategyModal" tabindex="-1">
-        <div class="modal-dialog"> <div class="modal-content">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fs-6">⚙️ Konfigurasi Strategi</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="strategy-form">
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold">Pilih Profil Trading:</label>
-                            <select id="strategy-preset" class="form-select" onchange="applyStrategyPreset()">
-                                <option value="custom">🛠️ Custom (Manual)</option>
-                                <option value="conservative">🐢 Konservatif (Swing/Invest)</option>
-                                <option value="moderate">⚖️ Moderat (Day Trade)</option>
-                                <option value="aggressive">🚀 Agresif (Scalping)</option>
-                            </select>
-                            <div class="form-text small fst-italic mt-1" id="strategy-desc">Deskripsi strategi...</div>
-                        </div>
-                        <hr>
-                        
-                        <div class="row g-2">
-                            <div class="col-6">
-                                <h6 class="small fw-bold text-muted border-bottom pb-1">💰 Risk Management</h6>
-                                <div class="mb-2">
-                                    <label class="form-label small mb-0">Target Profit (%)</label>
-                                    <input type="number" id="default-tp" class="form-control form-control-sm" placeholder="0">
-                                </div>
-                                <div class="mb-2">
-                                    <label class="form-label small mb-0">Cut Loss (%)</label>
-                                    <input type="number" id="default-cl" class="form-control form-control-sm" placeholder="0">
-                                </div>
-                            </div>
-
-                            <div class="col-6">
-                                <h6 class="small fw-bold text-muted border-bottom pb-1">📈 Indikator Chart</h6>
-                                <div class="mb-2">
-                                    <label class="form-label small mb-0">MA Period (Garis Tren)</label>
-                                    <input type="number" id="default-ma" class="form-control form-control-sm" placeholder="Contoh: 20">
-                                </div>
-                                <div class="mb-2">
-                                    <label class="form-label small mb-0">RSI Period</label>
-                                    <input type="number" id="default-rsi" class="form-control form-control-sm" value="14" readonly>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="alert alert-info py-2 mt-3 mb-0 small">
-                            <i class="me-1">ℹ️</i> Angka ini akan digunakan untuk <b>Auto-fill Portofolio</b> dan <b>Setting Grafik</b>.
-                        </div>
-
-                        <button type="submit" class="btn btn-warning w-100 mt-3">Simpan Konfigurasi</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
         <div class="sticky-controls mb-3">
             <div class="card shadow-sm border-0">
                 <div class="card-body p-3 bg-white rounded">
-                    <div class="row g-2 align-items-stretch"> <div class="col-md-6 position-relative">
+                    <div class="row g-2 align-items-stretch">
+                        <div class="col-md-6 position-relative">
                             <div class="input-group h-100"> 
                                 <span class="input-group-text bg-light border-end-0">🔍</span>
                                 <input type="text" id="input-search" class="form-control border-start-0" placeholder="Cari Kode / Nama..." autocomplete="off">
                             </div>
                             <div id="search-results" class="list-group shadow d-none" style="top: 45px;"></div>
                         </div>
-
                         <div class="col-md-6">
                             <div class="btn-group w-100 h-100 shadow-sm" role="group">
                                 <input type="radio" class="btn-check" name="btnradio" id="filter-all" autocomplete="off" checked onclick="setFilter('ALL')">
@@ -274,11 +188,10 @@
                     </table>
                 </div>
             </div>
-            <div class="card-footer bg-white text-muted text-center py-2 small" id="footer-info">
-                Menunggu data...
-            </div>
+            <div class="card-footer bg-white text-muted text-center py-2 small" id="footer-info">Menunggu data...</div>
         </div>
-    </div>
+
+    </div> 
 
     <div class="modal fade" id="portfolioModal" tabindex="-1">
         <div class="modal-dialog modal-lg modal-fullscreen-md-down">
@@ -291,37 +204,20 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    
                     <div id="chart-area" class="mb-2 border rounded p-1 bg-white" style="height: 300px;">
-                        <div id="price-chart" class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
-                            <small>Memuat Chart...</small>
-                        </div>
+                        <div id="price-chart" class="w-100 h-100 d-flex align-items-center justify-content-center text-muted"><small>Memuat Chart...</small></div>
                     </div>
-
                     <div class="card bg-light border-0 mb-3">
                         <div class="card-body p-2">
                             <h6 class="fw-bold small text-muted mb-2">🤖 AI Technical Summary</h6>
                             <div class="row g-2" style="font-size: 0.8rem;">
-                                <div class="col-6">
-                                    <span class="d-block text-secondary">Trend (MA20):</span>
-                                    <span id="tech-trend" class="fw-bold">-</span>
-                                </div>
-                                <div class="col-6">
-                                    <span class="d-block text-secondary">RSI (14):</span>
-                                    <span id="tech-rsi" class="fw-bold">-</span>
-                                </div>
-                                <div class="col-6">
-                                    <span class="d-block text-secondary">Support / Resistance:</span>
-                                    <span id="tech-sr" class="fw-bold">-</span>
-                                </div>
-                                <div class="col-6">
-                                    <span class="d-block text-secondary">MACD:</span>
-                                    <span id="tech-macd" class="fw-bold">-</span>
-                                </div>
+                                <div class="col-6"><span class="d-block text-secondary">Trend (MA):</span><span id="tech-trend" class="fw-bold">-</span></div>
+                                <div class="col-6"><span class="d-block text-secondary">RSI:</span><span id="tech-rsi" class="fw-bold">-</span></div>
+                                <div class="col-6"><span class="d-block text-secondary">Supp/Res:</span><span id="tech-sr" class="fw-bold">-</span></div>
+                                <div class="col-6"><span class="d-block text-secondary">MACD:</span><span id="tech-macd" class="fw-bold">-</span></div>
                             </div>
                         </div>
                     </div>
-
                     <form id="portfolio-form">
                         <input type="hidden" id="input-kode">
                         <div class="row mb-3">
@@ -375,36 +271,53 @@
     </div>
 
     <div class="modal fade" id="strategyModal" tabindex="-1">
-        <div class="modal-dialog modal-sm">
+        <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fs-6">⚙️ Atur Gaya Trading</h5>
+                    <h5 class="modal-title fs-6">⚙️ Konfigurasi Strategi</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form id="strategy-form">
                         <div class="mb-3">
-                            <label class="form-label small fw-bold">Pilih Profil:</label>
-                            <select id="strategy-preset" class="form-select form-select-sm" onchange="applyStrategyPreset()">
+                            <label class="form-label small fw-bold">Pilih Profil Trading:</label>
+                            <select id="strategy-preset" class="form-select" onchange="applyStrategyPreset()">
                                 <option value="custom">🛠️ Custom (Manual)</option>
-                                <option value="conservative">🐢 Konservatif (Swing)</option>
-                                <option value="moderate">⚖️ Moderat (Standard)</option>
+                                <option value="conservative">🐢 Konservatif (Swing/Invest)</option>
+                                <option value="moderate">⚖️ Moderat (Day Trade)</option>
                                 <option value="aggressive">🚀 Agresif (Scalping)</option>
                             </select>
+                            <div class="form-text small fst-italic mt-1" id="strategy-desc">Deskripsi strategi...</div>
                         </div>
                         <hr>
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold">Default TP (%)</label>
-                            <input type="number" id="default-tp" class="form-control" placeholder="0">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <h6 class="small fw-bold text-muted border-bottom pb-1">💰 Risk Management</h6>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-0">Target Profit (%)</label>
+                                    <input type="number" id="default-tp" class="form-control form-control-sm" placeholder="0">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-0">Cut Loss (%)</label>
+                                    <input type="number" id="default-cl" class="form-control form-control-sm" placeholder="0">
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <h6 class="small fw-bold text-muted border-bottom pb-1">📈 Indikator Chart</h6>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-0">MA Period</label>
+                                    <input type="number" id="default-ma" class="form-control form-control-sm" placeholder="Contoh: 20">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-0">RSI Period</label>
+                                    <input type="number" id="default-rsi" class="form-control form-control-sm" value="14">
+                                </div>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold">Default CL (%)</label>
-                            <input type="number" id="default-cl" class="form-control" placeholder="0">
+                        <div class="alert alert-info py-2 mt-3 mb-0 small">
+                            <i class="me-1">ℹ️</i> Angka ini akan digunakan untuk <b>Auto-fill Portofolio</b> dan <b>Setting Grafik</b>.
                         </div>
-                        <div class="alert alert-light border p-2 mb-3" style="font-size: 11px;">
-                            <span id="strategy-desc">Pilih profil di atas untuk mengisi otomatis, atau ketik manual.</span>
-                        </div>
-                        <button type="submit" class="btn btn-warning w-100 btn-sm">Simpan Settingan</button>
+                        <button type="submit" class="btn btn-warning w-100 mt-3">Simpan Konfigurasi</button>
                     </form>
                 </div>
             </div>
