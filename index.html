@@ -18,50 +18,75 @@
             0% { background-color: #ffeeba; }
             100% { background-color: transparent; }
         }
-        .highlight-search {
-            animation: highlightRow 2s ease-out;
-        }
+        .highlight-search { animation: highlightRow 2s ease-out; }
 
         /* Dropdown Search Results */
         #search-results {
-            max-height: 200px;
-            overflow-y: auto;
-            position: absolute;
-            width: 100%;
-            z-index: 1050;
+            max-height: 200px; overflow-y: auto; position: absolute; width: 100%; z-index: 1060;
+        }
+
+        /* --- FITUR BARU: STICKY CONTROL PANEL (Filter) --- */
+        .sticky-controls {
+            position: sticky;
+            top: 56px; /* Tinggi Navbar (sesuaikan jika navbar berubah) */
+            z-index: 1040; /* Di atas tabel header, di bawah navbar/modal */
+            background-color: #f8f9fa; /* Warna background body agar tidak transparan */
+            padding-top: 10px;
+            padding-bottom: 5px;
+        }
+
+        /* --- FITUR BARU: STICKY FIRST COLUMN (Kode Saham) --- */
+        /* Header Kolom Pertama */
+        .table th:first-child {
+            position: sticky;
+            left: 0;
+            z-index: 20; /* Lebih tinggi dari sel biasa */
+            background-color: #f8f9fa !important; /* Warna header */
+            border-right: 2px solid #dee2e6; /* Garis pemisah */
+        }
+        /* Isi Data Kolom Pertama */
+        .table td:first-child {
+            position: sticky;
+            left: 0;
+            z-index: 10;
+            background-color: #fff !important; /* Wajib putih agar tidak transparan saat scroll */
+            border-right: 2px solid #dee2e6;
+        }
+        /* Fix untuk hover row agar warna sticky col tidak tertutup */
+        .table-hover tbody tr:hover td:first-child {
+            background-color: #e9ecef !important;
         }
     </style>
 </head>
 <body class="bg-light">
 
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm sticky-top">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top" style="height: 56px;">
         <div class="container">
             <a class="navbar-brand fw-bold text-warning" href="#">
                 SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 10px;">BETA</span>
             </a>
             
-            <div class="d-flex gap-2 align-items-center">
-                <button class="btn btn-outline-warning btn-sm" onclick="openStrategyModal()" title="Atur Strategi Default">
-                    ⚙️ Strategi
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-light" onclick="openStrategyModal()" title="Atur Strategi">
+                    ⚙️ STRATEGI
                 </button>
                 
-                <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
-                <button class="btn btn-success btn-sm" onclick="document.getElementById('csv-file-input').click()">
-                    📂 Upload CSV
+                <button type="button" class="btn btn-outline-light" id="btn-logout" title="Keluar Aplikasi">
+                    LOGOUT
                 </button>
 
-                <button class="btn btn-outline-light btn-sm" id="btn-logout">
-                    Logout
+                <button type="button" class="btn btn-outline-light" onclick="document.getElementById('csv-file-input').click()" title="Upload CSV Baru">
+                    📂 UPLOAD
                 </button>
             </div>
+            <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+
         </div>
     </nav>
 
     <div class="container">
         
-        <div id="status-alert" class="alert alert-secondary d-none" role="alert"></div>
-
-        <div class="row g-3 mb-3" id="market-overview-area" style="display:none;">
+        <div class="row g-3 my-3" id="market-overview-area" style="display:none;">
             <div class="col-md-4">
                 <div class="card shadow-sm h-100 border-success">
                     <div class="card-header bg-success text-white py-1 fw-bold small">🚀 Top Gainers</div>
@@ -81,26 +106,30 @@
                 </div>
             </div>
         </div>
-
-        <div class="card shadow-sm mb-3">
-            <div class="card-body p-3">
-                <div class="row g-3 align-items-center">
-                    
-                    <div class="col-12 mb-2 position-relative">
-                        <input type="text" id="input-search" class="form-control" placeholder="🔍 Cari Kode atau Nama Perusahaan..." autocomplete="off">
-                        <div id="search-results" class="list-group shadow d-none"></div>
-                    </div>
-
-                    <div class="col-12">
-                        <div class="btn-group w-100 shadow-sm" role="group">
-                            <input type="radio" class="btn-check" name="btnradio" id="filter-all" autocomplete="off" checked onclick="setFilter('ALL')">
-                            <label class="btn btn-outline-secondary" for="filter-all">Semua</label>
-                          
-                            <input type="radio" class="btn-check" name="btnradio" id="filter-watchlist" autocomplete="off" onclick="setFilter('WATCHLIST')">
-                            <label class="btn btn-outline-warning" for="filter-watchlist">⭐ Watchlist</label>
         
-                            <input type="radio" class="btn-check" name="btnradio" id="filter-owned" autocomplete="off" onclick="setFilter('OWNED')">
-                            <label class="btn btn-outline-primary fw-bold" for="filter-owned">💼 Portofolio</label>
+        <div id="status-alert" class="alert alert-secondary d-none mb-2" role="alert"></div>
+
+        <div class="sticky-controls mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body p-2">
+                    <div class="row g-2 align-items-center">
+                        
+                        <div class="col-md-6 position-relative">
+                            <input type="text" id="input-search" class="form-control form-control-sm" placeholder="🔍 Cari Kode atau Nama..." autocomplete="off">
+                            <div id="search-results" class="list-group shadow d-none" style="top: 35px;"></div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="btn-group w-100 btn-group-sm shadow-sm" role="group">
+                                <input type="radio" class="btn-check" name="btnradio" id="filter-all" autocomplete="off" checked onclick="setFilter('ALL')">
+                                <label class="btn btn-outline-secondary" for="filter-all">Semua</label>
+                              
+                                <input type="radio" class="btn-check" name="btnradio" id="filter-watchlist" autocomplete="off" onclick="setFilter('WATCHLIST')">
+                                <label class="btn btn-outline-warning" for="filter-watchlist">⭐ Watchlist</label>
+            
+                                <input type="radio" class="btn-check" name="btnradio" id="filter-owned" autocomplete="off" onclick="setFilter('OWNED')">
+                                <label class="btn btn-outline-primary fw-bold" for="filter-owned">💼 Portofolio</label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -113,11 +142,11 @@
                     <table class="table table-hover align-middle mb-0 text-nowrap">
                         <thead class="table-light">
                             <tr>
-                                <th style="cursor:pointer; width: 25%;" onclick="sortTable(0)">Kode Saham ⇅</th>
-                                <th style="cursor:pointer; width: 15%;" onclick="sortTable(1)">Close ⇅</th>
-                                <th style="cursor:pointer; width: 20%;" class="text-end" onclick="sortTable(2)">Volume ⇅</th> 
-                                <th style="cursor:pointer; width: 20%;" class="text-end" onclick="sortTable(3)">Chg % / P/L ⇅</th>
-                                <th style="cursor:pointer; width: 20%;" class="text-center" onclick="sortTable(4)">Sinyal / Status ⇅</th>
+                                <th style="cursor:pointer; min-width: 130px;" onclick="sortTable(0)">Kode Saham ⇅</th>
+                                <th style="cursor:pointer; min-width: 100px;" onclick="sortTable(1)">Close ⇅</th>
+                                <th style="cursor:pointer; min-width: 100px;" class="text-end" onclick="sortTable(2)">Volume ⇅</th> 
+                                <th style="cursor:pointer; min-width: 120px;" class="text-end" onclick="sortTable(3)">Chg % / P/L ⇅</th>
+                                <th style="cursor:pointer; min-width: 120px;" class="text-center" onclick="sortTable(4)">Sinyal / Status ⇅</th>
                             </tr>
                         </thead>
                         <tbody id="table-body">
@@ -152,7 +181,6 @@
 
                     <form id="portfolio-form">
                         <input type="hidden" id="input-kode">
-                        
                         <div class="row mb-3">
                             <div class="col-6">
                                 <label class="form-label small text-muted">Harga Avg (Buy)</label>
@@ -164,7 +192,6 @@
                             </div>
                         </div>
                         <hr>
-                        
                         <p class="mb-2 fw-bold text-primary small">🎯 TRADING PLAN (Satuan %)</p>
                         <div class="row mb-3">
                             <div class="col-6">
@@ -186,17 +213,14 @@
                                 <div class="form-text text-danger small" id="calc-cl">Stop: -</div>
                             </div>
                         </div>
-
-                        <div class="mb-3 form-check">
+                         <div class="mb-3 form-check">
                             <input type="checkbox" class="form-check-input" id="input-watchlist">
                             <label class="form-check-label small" for="input-watchlist">⭐ Masukkan ke Watchlist</label>
                         </div>
-
                         <div class="mb-3">
                             <label class="form-label small text-muted">Catatan / Alasan Beli</label>
                             <textarea id="input-notes" class="form-control form-control-sm" rows="2" placeholder="Contoh: Akumulasi bandar, Breakout resistance..."></textarea>
                         </div>
-
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">💾 Simpan Plan</button>
                             <button type="button" class="btn btn-outline-danger btn-sm" id="btn-delete-portfolio" style="display:none;">🗑️ Hapus dari Portofolio</button>
@@ -216,7 +240,6 @@
                 </div>
                 <div class="modal-body">
                     <form id="strategy-form">
-                        
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Pilih Profil:</label>
                             <select id="strategy-preset" class="form-select form-select-sm" onchange="applyStrategyPreset()">
@@ -226,9 +249,7 @@
                                 <option value="aggressive">🚀 Agresif (Scalping)</option>
                             </select>
                         </div>
-
                         <hr>
-
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Default TP (%)</label>
                             <input type="number" id="default-tp" class="form-control" placeholder="0">
@@ -237,11 +258,9 @@
                             <label class="form-label small fw-bold">Default CL (%)</label>
                             <input type="number" id="default-cl" class="form-control" placeholder="0">
                         </div>
-                        
                         <div class="alert alert-light border p-2 mb-3" style="font-size: 11px;">
                             <span id="strategy-desc">Pilih profil di atas untuk mengisi otomatis, atau ketik manual.</span>
                         </div>
-
                         <button type="submit" class="btn btn-warning w-100 btn-sm">Simpan Settingan</button>
                     </form>
                 </div>
