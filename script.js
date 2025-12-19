@@ -7,23 +7,26 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const db = supabase.createClient(supabaseUrl, supabaseKey);
 
 // ==========================================
-// 2. GLOBAL VARIABLES
+// 2. GLOBAL VARIABLES & AUTH
 // ==========================================
 let currentUser = null;
 let allStocks = [];       
 let myPortfolio = [];     
 let currentFilter = 'ALL';
 
+// Cek Sesi Login
 async function checkSession() {
     const { data: { session } } = await db.auth.getSession();
-    if (!session) window.location.href = 'login.html';
-    else {
+    if (!session) {
+        window.location.href = 'login.html';
+    } else {
         currentUser = session.user;
         loadData(); 
     }
 }
 checkSession();
 
+// Listener Logout
 document.getElementById('btn-logout')?.addEventListener('click', async () => {
     if(confirm("Logout?")) {
         await db.auth.signOut();
@@ -32,27 +35,37 @@ document.getElementById('btn-logout')?.addEventListener('click', async () => {
 });
 
 // ==========================================
-// 3. LOAD DATA
+// 3. LOAD DATA (PASAR + PORTOFOLIO)
 // ==========================================
 async function loadData() {
     showAlert('primary', 'Sinkronisasi data...');
+    
+    // Ambil Data Market (Limit diperbesar agar muat semua saham)
     const marketReq = db.from('data_saham').select('*').order('kode_saham', { ascending: true }).limit(2000);
+    // Ambil Data Portofolio User
     const portfolioReq = db.from('portfolio').select('*');
 
     const [marketRes, portfolioRes] = await Promise.all([marketReq, portfolioReq]);
 
-    if (marketRes.error) { showAlert('danger', marketRes.error.message); return; }
+    if (marketRes.error) {
+        showAlert('danger', 'Gagal load: ' + marketRes.error.message);
+        return;
+    }
 
     allStocks = marketRes.data;
     myPortfolio = portfolioRes.data || [];
 
     applyFilterAndRender();
-    if(allStocks.length > 0) showAlert('success', `Data siap: ${allStocks.length} Emiten.`);
-    else showAlert('warning', 'Data kosong.');
+    
+    if(allStocks.length > 0) {
+        showAlert('success', `Data siap: ${allStocks.length} Emiten.`);
+    } else {
+        showAlert('warning', 'Data kosong. Silakan upload CSV Ringkasan Saham.');
+    }
 }
 
 // ==========================================
-// 4. ANALISA (CORE LOGIC)
+// 4. CORE ENGINE: ANALISA & FILTER
 // ==========================================
 function setFilter(type) {
     currentFilter = type;
@@ -66,9 +79,14 @@ function applyFilterAndRender() {
     });
 
     let filteredData = [];
-    if (currentFilter === 'ALL') filteredData = processedData;
-    else if (currentFilter === 'WATCHLIST') filteredData = processedData.filter(s => s.isWatchlist || s.isOwned);
-    else if (currentFilter === 'OWNED') filteredData = processedData.filter(s => s.isOwned);
+    if (currentFilter === 'ALL') {
+        filteredData = processedData;
+    } else if (currentFilter === 'WATCHLIST') {
+        // Tampilkan yg dicentang watchlist ATAU yang punya barang (owned)
+        filteredData = processedData.filter(s => s.isWatchlist || s.isOwned);
+    } else if (currentFilter === 'OWNED') {
+        filteredData = processedData.filter(s => s.isOwned);
+    }
 
     renderTable(filteredData);
 }
@@ -80,29 +98,29 @@ function analyzeStock(stock, ownedData) {
     const change = close - prev;
     const chgPercent = prev === 0 ? 0 : (change / prev) * 100;
 
-    // --- SETUP AWAL ---
+    // --- SETUP VARIABEL ---
     let signal = 'WAIT';
     let portfolioInfo = null;
     let isOwned = false;
     let isWatchlist = false;
 
-    // --- ANALISA MARKET ---
-    // Logika Sinyal Sederhana (Indikator Harian)
+    // --- 1. ANALISA MARKET (TECHNICAL SIMPLE) ---
     if (chgPercent >= 1) signal = 'BUY';
     else if (chgPercent <= -1) signal = 'SELL';
     
-    // --- ANALISA PORTOFOLIO ---
+    // --- 2. ANALISA PORTOFOLIO (PERSONAL) ---
     if (ownedData) {
-        isWatchlist = ownedData.is_watchlist;
+        isWatchlist = ownedData.is_watchlist; // Ambil status watchlist
 
         if (ownedData.lots > 0) {
             isOwned = true;
             const avgPrice = Number(ownedData.avg_price);
             const lots = Number(ownedData.lots);
             
-            // TP/CL Kalkulasi
+            // Hitung Harga TP & CL berdasarkan Persen Inputan
             const tpPct = Number(ownedData.tp_pct) || 0;
             const clPct = Number(ownedData.cl_pct) || 0;
+            
             const tpPrice = tpPct > 0 ? avgPrice * (1 + (tpPct/100)) : 0;
             const clPrice = clPct > 0 ? avgPrice * (1 - (clPct/100)) : 0;
             
@@ -112,17 +130,16 @@ function analyzeStock(stock, ownedData) {
             const plPercent = (plVal / buyVal) * 100;
 
             let actionStatus = 'HOLD';
-            // Logika Status Portfolio
+            // Logika Status Aksi
             if (tpPrice > 0 && close >= tpPrice) actionStatus = 'DONE TP 💰';
             else if (clPrice > 0 && close <= clPrice) actionStatus = 'HIT CL ⚠️';
             else if (plPercent > 0) actionStatus = 'HOLD 🟢';
             else actionStatus = 'HOLD 🔴';
 
             // --- FITUR BARU: ADD-ON (PYRAMIDING) ---
-            // Syarat: Sudah punya (isOwned), Posisi Profit > 2%, dan Hari ini naik > 0.5%
-            // Artinya: Barang bagus, lagi naik, boleh tambah muatan.
+            // Syarat: Sudah punya, Posisi Profit > 2%, dan Hari ini naik > 0.5%
             if (plPercent > 2 && chgPercent > 0.5) {
-                signal = 'ADD-ON 🔥'; // Override sinyal market biasa
+                signal = 'ADD-ON 🔥'; // Override sinyal market
             }
 
             portfolioInfo = { 
@@ -153,7 +170,7 @@ function renderTable(data) {
     
     data.forEach(item => {
         const row = document.createElement('tr');
-        row.className = 'clickable-row'; // Style hover
+        row.className = 'clickable-row'; 
         
         const fmt = (n) => new Intl.NumberFormat('id-ID').format(n);
         const fmtDec = (n) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(n);
@@ -161,22 +178,20 @@ function renderTable(data) {
         let metricHtml = '';
         let badgeHtml = '';
 
-        // --- KOLOM KODE & WATCHLIST ---
+        // A. KOLOM KODE & WATCHLIST
         const starClass = item.isWatchlist ? 'text-warning' : 'text-muted';
         const starIcon = item.isWatchlist ? '★' : '☆';
-        // Klik kode untuk buka modal
+        
         const kodeHtml = `
             <div class="d-flex align-items-center">
                 <span class="${starClass} me-2 fs-5" style="cursor:pointer;" onclick="toggleWatchlist('${item.kode_saham}')" title="Watchlist">${starIcon}</span>
-                <div>
-                    <span class="fw-bold kode-saham-btn text-primary" onclick="openPortfolioModal('${item.kode_saham}')">${item.kode_saham}</span>
-                    <br><small class="text-muted" style="font-size:10px;">${item.nama_perusahaan.substring(0, 15)}...</small>
-                </div>
+                <span class="fw-bold kode-saham-btn text-primary" onclick="openPortfolioModal('${item.kode_saham}')">${item.kode_saham}</span>
             </div>
         `;
 
-        // --- KOLOM METRIK (P/L atau CHG) ---
+        // B. KOLOM METRIK (P/L atau CHG)
         if (currentFilter === 'OWNED' && item.isOwned) {
+            // Mode Portfolio
             const pl = item.portfolio.plPercent;
             const color = pl >= 0 ? 'text-success' : 'text-danger';
             metricHtml = `
@@ -184,7 +199,7 @@ function renderTable(data) {
                 <small class="text-muted" style="font-size:10px">TP:${item.portfolio.tpPct}% CL:${item.portfolio.clPct}%</small>
             `;
             
-            // Status Portfolio Badge
+            // Badge Status
             let sColor = 'bg-secondary';
             if (item.portfolio.status.includes('TP')) sColor = 'bg-warning text-dark';
             if (item.portfolio.status.includes('CL')) sColor = 'bg-dark text-white';
@@ -195,10 +210,11 @@ function renderTable(data) {
             
             // Tampilkan Sinyal Add-on jika muncul
             if (item.signal === 'ADD-ON 🔥') {
-                badgeHtml += `<br><span class="badge bg-primary mt-1">ADD-ON 🔥</span>`;
+                badgeHtml += `<br><span class="badge bg-primary mt-1" style="font-size:9px">ADD-ON 🔥</span>`;
             }
 
         } else {
+            // Mode Market
             const color = item.change >= 0 ? 'text-success' : 'text-danger';
             metricHtml = `<div class="${color} fw-bold">${item.change > 0 ? '+' : ''}${fmtDec(item.chgPercent)}%</div>`;
             
@@ -221,15 +237,17 @@ function renderTable(data) {
 }
 
 // ==========================================
-// 6. SORTING & UTILS
+// 6. SORTING TABLE
 // ==========================================
 let sortDir = 'asc';
 window.sortTable = (n) => {
     sortDir = sortDir === 'asc' ? 'desc' : 'asc';
     const rows = Array.from(tableBody.querySelectorAll('tr'));
+
     rows.sort((rowA, rowB) => {
         let valA = rowA.children[n].innerText.trim();
         let valB = rowB.children[n].innerText.trim();
+
         const parseNum = (str) => {
             const match = str.match(/[-+]?[0-9]*\.?[0-9]+/); 
             if(!match) return str; 
@@ -237,17 +255,26 @@ window.sortTable = (n) => {
             const num = parseFloat(clean);
             return isNaN(num) ? str : num;
         };
+
+        // Khusus kolom kode (index 0), buang bintangnya dulu
+        if (n === 0) {
+            valA = valA.split('\n')[0].trim(); // Ambil teks kode saja
+            valB = valB.split('\n')[0].trim();
+        }
+
         const a = parseNum(valA);
         const b = parseNum(valB);
+
         if (a < b) return sortDir === 'asc' ? -1 : 1;
         if (a > b) return sortDir === 'asc' ? 1 : -1;
         return 0;
     });
+
     rows.forEach(row => tableBody.appendChild(row));
 };
 
 // ==========================================
-// 7. MODAL LOGIC
+// 7. MODAL & FORM LOGIC
 // ==========================================
 let portfolioModal; 
 try { portfolioModal = new bootstrap.Modal(document.getElementById('portfolioModal')); } catch(e) {}
@@ -260,16 +287,20 @@ const formClPct = document.getElementById('input-cl-pct');
 const formNotes = document.getElementById('input-notes');
 const checkWatchlist = document.getElementById('input-watchlist');
 const labelModalKode = document.getElementById('modal-kode-saham');
+const labelModalNama = document.getElementById('modal-nama-perusahaan');
 const btnDelete = document.getElementById('btn-delete-portfolio');
 const txtCalcTp = document.getElementById('calc-tp');
 const txtCalcCl = document.getElementById('calc-cl');
 
+// Kalkulator Otomatis (Saat input %)
 function updateCalc() {
     const avg = parseFloat(formAvg.value) || 0;
     const tpPct = parseFloat(formTpPct.value) || 0;
     const clPct = parseFloat(formClPct.value) || 0;
+
     const tpPrice = Math.round(avg * (1 + tpPct/100));
     const clPrice = Math.round(avg * (1 - clPct/100));
+
     txtCalcTp.innerText = tpPct > 0 ? `Target: Rp ${new Intl.NumberFormat('id-ID').format(tpPrice)}` : 'Target: -';
     txtCalcCl.innerText = clPct > 0 ? `Stop: Rp ${new Intl.NumberFormat('id-ID').format(clPrice)}` : 'Stop: -';
 }
@@ -277,13 +308,17 @@ formAvg.addEventListener('input', updateCalc);
 formTpPct.addEventListener('input', updateCalc);
 formClPct.addEventListener('input', updateCalc);
 
+// Buka Modal
 window.openPortfolioModal = (kode) => {
     const stock = allStocks.find(s => s.kode_saham === kode);
     const owned = myPortfolio.find(p => p.kode_saham === kode);
 
+    // Isi Header
     labelModalKode.innerText = kode;
+    if(labelModalNama) labelModalNama.innerText = stock ? stock.nama_perusahaan : '';
     formKode.value = kode;
     
+    // Isi Form
     if (owned) {
         formAvg.value = owned.avg_price;
         formLots.value = owned.lots;
@@ -293,7 +328,7 @@ window.openPortfolioModal = (kode) => {
         checkWatchlist.checked = owned.is_watchlist; 
         if(btnDelete) btnDelete.style.display = 'block';
     } else {
-        formAvg.value = stock.penutupan;
+        formAvg.value = stock ? stock.penutupan : 0;
         formLots.value = 1;
         formTpPct.value = '';
         formClPct.value = '';
@@ -305,20 +340,26 @@ window.openPortfolioModal = (kode) => {
     portfolioModal.show();
 };
 
+// Toggle Bintang
 window.toggleWatchlist = async (kode) => {
     const owned = myPortfolio.find(p => p.kode_saham === kode);
     const newStatus = owned ? !owned.is_watchlist : true;
+
+    // Payload
     const payload = { user_id: currentUser.id, kode_saham: kode, is_watchlist: newStatus };
-    if (!owned) { payload.avg_price = 0; payload.lots = 0; }
+    if (!owned) { payload.avg_price = 0; payload.lots = 0; } // Default jika belum punya
+
     const { error } = await db.from('portfolio').upsert(payload, { onConflict: 'user_id, kode_saham' });
     if(!error) await loadData(); 
     else showAlert('danger', 'Gagal update watchlist');
 };
 
+// Simpan Data
 document.getElementById('portfolio-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     showAlert('info', 'Menyimpan...');
     portfolioModal.hide();
+
     const payload = {
         user_id: currentUser.id,
         kode_saham: formKode.value,
@@ -329,32 +370,23 @@ document.getElementById('portfolio-form')?.addEventListener('submit', async (e) 
         notes: formNotes.value,
         is_watchlist: checkWatchlist.checked
     };
+
     const { error } = await db.from('portfolio').upsert(payload, { onConflict: 'user_id, kode_saham' });
     if (error) showAlert('danger', error.message);
     else { await loadData(); showAlert('success', 'Tersimpan!'); }
 });
 
+// Hapus Data
 btnDelete?.addEventListener('click', async () => {
-    if(!confirm("Hapus?")) return;
+    if(!confirm("Hapus dari portofolio?")) return;
     portfolioModal.hide();
     const { error } = await db.from('portfolio').delete().match({ user_id: currentUser.id, kode_saham: formKode.value });
     if(!error) { await loadData(); showAlert('success', 'Dihapus.'); }
 });
 
-function showAlert(type, msg) {
-    const alertBox = document.getElementById('status-alert');
-    if(alertBox) {
-        alertBox.className = `alert alert-${type}`;
-        alertBox.innerHTML = msg;
-        alertBox.classList.remove('d-none');
-    }
-}
-
 // ==========================================
-// 8. CSV UPLOAD (MAPPING LENGKAP & HISTORY)
+// 8. CSV UPLOAD (FULL MAPPING & HISTORY)
 // ==========================================
-// ... (Paste kode CSV Upload & uploadToSupabase LENGKAP dari pesan sebelumnya di sini) ...
-// Agar file tidak terpotong, pastikan Anda menyalin blok CSV Upload dari kode sebelumnya ke bagian bawah sini.
 const csvInput = document.getElementById('csv-file-input');
 if (csvInput) {
     csvInput.addEventListener('change', (event) => {
@@ -461,5 +493,15 @@ async function uploadToSupabase(dataSaham) {
         setTimeout(loadData, 1500);
     } else {
         showAlert('danger', `Selesai dengan error.`);
+    }
+}
+
+// Helper Alert
+function showAlert(type, msg) {
+    const alertBox = document.getElementById('status-alert');
+    if(alertBox) {
+        alertBox.className = `alert alert-${type}`;
+        alertBox.innerHTML = msg;
+        alertBox.classList.remove('d-none');
     }
 }
