@@ -165,6 +165,9 @@ function analyzeStock(stock, ownedData) {
 const tableBody = document.getElementById('table-body');
 const footerInfo = document.getElementById('footer-info');
 
+// ==========================================
+// UPDATE: RENDER TABEL (LEBIH BERSIH)
+// ==========================================
 function renderTable(data) {
     tableBody.innerHTML = '';
     
@@ -178,7 +181,8 @@ function renderTable(data) {
         let metricHtml = '';
         let badgeHtml = '';
 
-        // A. KOLOM KODE & WATCHLIST
+        // --- KOLOM KODE & WATCHLIST (CLEAN) ---
+        // Nama Perusahaan DIHAPUS dari sini
         const starClass = item.isWatchlist ? 'text-warning' : 'text-muted';
         const starIcon = item.isWatchlist ? '★' : '☆';
         
@@ -189,9 +193,8 @@ function renderTable(data) {
             </div>
         `;
 
-        // B. KOLOM METRIK (P/L atau CHG)
+        // --- KOLOM METRIK (P/L atau CHG) ---
         if (currentFilter === 'OWNED' && item.isOwned) {
-            // Mode Portfolio
             const pl = item.portfolio.plPercent;
             const color = pl >= 0 ? 'text-success' : 'text-danger';
             metricHtml = `
@@ -199,7 +202,7 @@ function renderTable(data) {
                 <small class="text-muted" style="font-size:10px">TP:${item.portfolio.tpPct}% CL:${item.portfolio.clPct}%</small>
             `;
             
-            // Badge Status
+            // Status Portfolio Badge
             let sColor = 'bg-secondary';
             if (item.portfolio.status.includes('TP')) sColor = 'bg-warning text-dark';
             if (item.portfolio.status.includes('CL')) sColor = 'bg-dark text-white';
@@ -208,13 +211,11 @@ function renderTable(data) {
             
             badgeHtml = `<span class="badge ${sColor}">${item.portfolio.status}</span>`;
             
-            // Tampilkan Sinyal Add-on jika muncul
             if (item.signal === 'ADD-ON 🔥') {
                 badgeHtml += `<br><span class="badge bg-primary mt-1" style="font-size:9px">ADD-ON 🔥</span>`;
             }
 
         } else {
-            // Mode Market
             const color = item.change >= 0 ? 'text-success' : 'text-danger';
             metricHtml = `<div class="${color} fw-bold">${item.change > 0 ? '+' : ''}${fmtDec(item.chgPercent)}%</div>`;
             
@@ -236,6 +237,43 @@ function renderTable(data) {
     footerInfo.innerText = `Menampilkan ${data.length} saham.`;
 }
 
+// ==========================================
+// UPDATE: MODAL LOGIC (TAMPILKAN NAMA PERUSAHAAN)
+// ==========================================
+// Pastikan variabel ini ada di bagian atas (DOM Elements)
+const labelModalNama = document.getElementById('modal-nama-perusahaan'); 
+
+window.openPortfolioModal = (kode) => {
+    const stock = allStocks.find(s => s.kode_saham === kode);
+    const owned = myPortfolio.find(p => p.kode_saham === kode);
+
+    // Isi Header Modal
+    labelModalKode.innerText = kode;
+    // Tampilkan Nama Perusahaan di Modal (Handling jika stock undefined)
+    if(labelModalNama) labelModalNama.innerText = stock ? stock.nama_perusahaan : '';
+
+    formKode.value = kode;
+    
+    if (owned) {
+        formAvg.value = owned.avg_price;
+        formLots.value = owned.lots;
+        formTpPct.value = owned.tp_pct || '';
+        formClPct.value = owned.cl_pct || ''; 
+        formNotes.value = owned.notes || '';
+        checkWatchlist.checked = owned.is_watchlist; 
+        if(btnDelete) btnDelete.style.display = 'block';
+    } else {
+        formAvg.value = stock ? stock.penutupan : 0;
+        formLots.value = 1;
+        formTpPct.value = '';
+        formClPct.value = '';
+        formNotes.value = '';
+        checkWatchlist.checked = false;
+        if(btnDelete) btnDelete.style.display = 'none';
+    }
+    updateCalc();
+    portfolioModal.show();
+};
 // ==========================================
 // 6. SORTING TABLE
 // ==========================================
