@@ -320,6 +320,7 @@ window.openPortfolioModal = (kode) => {
     
     // Isi Form
     if (owned) {
+        // --- JIKA EDIT DATA LAMA ---
         formAvg.value = owned.avg_price;
         formLots.value = owned.lots;
         formTpPct.value = owned.tp_pct || '';
@@ -328,18 +329,24 @@ window.openPortfolioModal = (kode) => {
         checkWatchlist.checked = owned.is_watchlist; 
         if(btnDelete) btnDelete.style.display = 'block';
     } else {
+        // --- JIKA DATA BARU (AUTO-FILL STRATEGY) ---
         formAvg.value = stock ? stock.penutupan : 0;
         formLots.value = 1;
-        formTpPct.value = '';
-        formClPct.value = '';
+
+        // AMBIL DARI DEFAULT STRATEGY
+        const defTp = localStorage.getItem('def_tp');
+        const defCl = localStorage.getItem('def_cl');
+
+        formTpPct.value = defTp || ''; // Isi otomatis jika ada
+        formClPct.value = defCl || ''; // Isi otomatis jika ada
+        
         formNotes.value = '';
         checkWatchlist.checked = false;
         if(btnDelete) btnDelete.style.display = 'none';
     }
-    updateCalc();
+    updateCalc(); // Hitung ulang Rupiahnya
     portfolioModal.show();
 };
-
 // Toggle Bintang
 window.toggleWatchlist = async (kode) => {
     const owned = myPortfolio.find(p => p.kode_saham === kode);
@@ -382,6 +389,36 @@ btnDelete?.addEventListener('click', async () => {
     portfolioModal.hide();
     const { error } = await db.from('portfolio').delete().match({ user_id: currentUser.id, kode_saham: formKode.value });
     if(!error) { await loadData(); showAlert('success', 'Dihapus.'); }
+});
+
+// ==========================================
+// 8. LOGIKA GLOBAL STRATEGY (BARU)
+// ==========================================
+let strategyModal;
+try { strategyModal = new bootstrap.Modal(document.getElementById('strategyModal')); } catch(e) {}
+
+const inputDefTp = document.getElementById('default-tp');
+const inputDefCl = document.getElementById('default-cl');
+
+// 1. Buka Modal & Load Data dari LocalStorage
+window.openStrategyModal = () => {
+    const savedTp = localStorage.getItem('def_tp');
+    const savedCl = localStorage.getItem('def_cl');
+    
+    if(inputDefTp) inputDefTp.value = savedTp || '';
+    if(inputDefCl) inputDefCl.value = savedCl || '';
+    
+    strategyModal.show();
+};
+
+// 2. Simpan ke LocalStorage
+document.getElementById('strategy-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    localStorage.setItem('def_tp', inputDefTp.value);
+    localStorage.setItem('def_cl', inputDefCl.value);
+    
+    strategyModal.hide();
+    showAlert('success', 'Strategi default tersimpan! Akan dipakai saat add saham baru.');
 });
 
 // ==========================================
