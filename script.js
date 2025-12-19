@@ -90,23 +90,15 @@ window.openPortfolioModal = function(kode) {
     const fTp=document.getElementById('input-tp-pct'), fCl=document.getElementById('input-cl-pct');
     const fNote=document.getElementById('input-notes'), fW=document.getElementById('input-watchlist'), btnDel=document.getElementById('btn-delete-portfolio');
 
-    // FIX: Hanya isi form dengan data tersimpan JIKA benar-benar punya Lot (Bukan cuma Watchlist)
     if (owned && owned.lots > 0) {
-        fAvg.value = owned.avg_price; 
-        fLot.value = owned.lots; 
-        fTp.value = owned.tp_pct || ''; 
-        fCl.value = owned.cl_pct || '';
-        fNote.value = owned.notes || ''; 
-        fW.checked = owned.is_watchlist; 
+        fAvg.value = owned.avg_price; fLot.value = owned.lots; 
+        fTp.value = owned.tp_pct || ''; fCl.value = owned.cl_pct || '';
+        fNote.value = owned.notes || ''; fW.checked = owned.is_watchlist; 
         btnDel.style.display = 'block';
     } else {
-        // Jika belum punya (atau cuma watchlist), isi dengan Harga Pasar & Strategi Default
-        fAvg.value = stock ? stock.penutupan : 0; 
-        fLot.value = 1; 
-        fTp.value = localStorage.getItem('def_tp') || ''; 
-        fCl.value = localStorage.getItem('def_cl') || '';
-        fNote.value = ''; 
-        fW.checked = owned ? owned.is_watchlist : false; // Tetap centang watchlist jika memang ada di list
+        fAvg.value = stock ? stock.penutupan : 0; fLot.value = 1; 
+        fTp.value = localStorage.getItem('def_tp') || ''; fCl.value = localStorage.getItem('def_cl') || '';
+        fNote.value = ''; fW.checked = owned ? owned.is_watchlist : false; 
         btnDel.style.display = 'none';
     }
     updateCalc();
@@ -160,7 +152,6 @@ function applyFilterAndRender() {
         const owned = myPortfolio.find(p => p.kode_saham === stock.kode_saham);
         return analyzeStock(stock, owned);
     });
-
     renderMarketOverview(processedData);
 
     let filteredData = [];
@@ -172,20 +163,36 @@ function applyFilterAndRender() {
 }
 
 function analyzeStock(stock, ownedData) {
+    // 1. SAFE PARSING: Paksa jadi angka, jika gagal jadi 0
     const close = Number(stock.penutupan) || 0;
-    const prev = Number(stock.sebelumnya) || close;
-    const change = close - prev;
-    const chgPercent = prev === 0 ? 0 : (change / prev) * 100;
+    const prev = Number(stock.sebelumnya) || close; // Jika prev 0, anggap tidak berubah
+    const open = Number(stock.open_price) || 0;
     
-    // Trend Simple
-    let trendLabel = '-';
-    if (close > Number(stock.open_price) && chgPercent > 0) trendLabel = 'Bullish ↗️';
-    else if (close < Number(stock.open_price) && chgPercent < 0) trendLabel = 'Bearish ↘️';
+    // 2. MATH SAFETY: Hitung Change
+    const change = close - prev;
+    let chgPercent = 0;
+    if (prev !== 0) {
+        chgPercent = (change / prev) * 100;
+    }
+    // Double check NaN
+    if(isNaN(chgPercent)) chgPercent = 0;
 
+    // 3. TREND
+    let trendLabel = '-';
+    if (close > open && chgPercent > 0) trendLabel = 'Bullish ↗️';
+    else if (close < open && chgPercent < 0) trendLabel = 'Bearish ↘️';
+
+    // 4. FUNDAMENTAL
     const shares = Number(stock.listed_shares) || 0;
-    const mcapVal = close * shares; 
+    let mcapVal = close * shares; 
+    if(isNaN(mcapVal)) mcapVal = 0;
+
     let mcapLabel = mcapVal >= 10000000000000 ? '🟦 BIG' : (mcapVal >= 1000000000000 ? '🟨 MID' : '⬜ SML');
-    const netForeign = (Number(stock.foreign_buy) || 0) - (Number(stock.foreign_sell) || 0);
+    
+    const fBuy = Number(stock.foreign_buy) || 0;
+    const fSell = Number(stock.foreign_sell) || 0;
+    let netForeign = fBuy - fSell;
+    if(isNaN(netForeign)) netForeign = 0;
 
     let signal = chgPercent >= 1 ? 'BUY' : (chgPercent <= -1 ? 'SELL' : 'WAIT');
     let portfolioInfo = null, isOwned = false, isWatchlist = false;
@@ -196,8 +203,12 @@ function analyzeStock(stock, ownedData) {
             isOwned = true;
             const avg = Number(ownedData.avg_price);
             const lots = Number(ownedData.lots);
+            
+            // Portfolio Math
             const plVal = (close * lots * 100) - (avg * lots * 100);
-            const plPercent = (plVal / (avg * lots * 100)) * 100;
+            let plPercent = 0;
+            if(avg > 0 && lots > 0) plPercent = (plVal / (avg * lots * 100)) * 100;
+
             let st = 'HOLD';
             const tpP = ownedData.tp_pct > 0 ? avg*(1+ownedData.tp_pct/100) : 0;
             const clP = ownedData.cl_pct > 0 ? avg*(1-ownedData.cl_pct/100) : 0;
@@ -218,24 +229,27 @@ function analyzeStock(stock, ownedData) {
 function calculateScore(stock) {
     let score = 0;
     const preset = localStorage.getItem('def_preset') || 'moderate';
+    
     const chg = Number(stock.chgPercent)||0;
-    const close = Number(stock.penutupan);
-    const open = Number(stock.open_price);
+    const close = Number(stock.penutupan)||0;
+    const open = Number(stock.open_price)||0;
+    const freq = Number(stock.frekuensi)||0;
+    const netF = Number(stock.netForeign)||0;
     
     if(chg > 0.5) score += 20; else if(chg > 0) score += 10;
     if(close > open) score += 10; 
 
     if (preset === 'aggressive') { 
         if(chg > 2) score += 30; 
-        if(Number(stock.frekuensi) > 5000) score += 30; else if(Number(stock.frekuensi) > 1000) score += 10;
+        if(freq > 5000) score += 30; else if(freq > 1000) score += 10;
     } else if (preset === 'conservative') {
         if(stock.mcapLabel === '🟦 BIG') score += 40; else if(stock.mcapLabel === '🟨 MID') score += 10;
-        if(stock.netForeign > 1e9) score += 30; 
+        if(netF > 1e9) score += 30; 
     } else { 
         if(stock.mcapLabel !== '⬜ SML') score += 15; 
-        if(Number(stock.frekuensi) > 2000) score += 15;
+        if(freq > 2000) score += 15;
         if(chg > 1) score += 15;
-        if(stock.netForeign > 0) score += 15;
+        if(netF > 0) score += 15;
     }
     return score;
 }
@@ -249,36 +263,57 @@ function renderMarketOverview(data) {
     if(widgetArea) widgetArea.style.display = 'block';
 
     const view = selectView ? selectView.value : 'gainers';
-    const fmtDec=(n)=>new Intl.NumberFormat('id-ID',{maximumFractionDigits:2}).format(n);
-    const fmtShort=(n)=>{ if(Math.abs(n)>=1e12)return(n/1e12).toFixed(1)+' T'; if(Math.abs(n)>=1e9)return(n/1e9).toFixed(1)+' M'; return new Intl.NumberFormat('id-ID').format(n); };
+    
+    // SAFETY FORMATTERS
+    const fmtDec = (n) => {
+        const val = Number(n);
+        if (isNaN(val)) return '0,00';
+        return new Intl.NumberFormat('id-ID',{maximumFractionDigits:2}).format(val);
+    };
+    const fmtShort = (n) => {
+        const val = Number(n);
+        if (isNaN(val)) return '-';
+        if(Math.abs(val)>=1e12) return(val/1e12).toFixed(1)+' T'; 
+        if(Math.abs(val)>=1e9) return(val/1e9).toFixed(1)+' M'; 
+        return new Intl.NumberFormat('id-ID').format(val); 
+    };
 
     let sortedData = [];
     let valFunc = (s) => ''; 
     let colorFunc = (s) => 'text-dark';
 
+    // SORT SAFETY: Handle NaN in sort
+    const safeSort = (arr, key, desc=true) => {
+        return [...arr].sort((a,b) => {
+            const vA = Number(a[key]) || 0;
+            const vB = Number(b[key]) || 0;
+            return desc ? vB - vA : vA - vB;
+        });
+    };
+
     if (view === 'gainers') {
-        sortedData = [...data].sort((a,b)=>b.chgPercent-a.chgPercent);
+        sortedData = safeSort(data, 'chgPercent', true);
         valFunc = (s) => `+${fmtDec(s.chgPercent)}%`; colorFunc = () => 'text-success';
     } else if (view === 'losers') {
-        sortedData = [...data].sort((a,b)=>a.chgPercent-b.chgPercent);
+        sortedData = safeSort(data, 'chgPercent', false);
         valFunc = (s) => `${fmtDec(s.chgPercent)}%`; colorFunc = () => 'text-danger';
     } else if (view === 'volume') {
-        sortedData = [...data].sort((a,b)=>b.volume-a.volume);
+        sortedData = safeSort(data, 'volume', true);
         valFunc = (s) => fmtShort(s.volume);
     } else if (view === 'ai_picks') {
         sortedData = data
             .map(s=>({...s, score:calculateScore(s)}))
             .filter(s => s.signal === 'BUY' || s.signal === 'ADD-ON 🔥')
-            .sort((a,b)=>b.score-a.score);
+            .sort((a,b)=>(b.score||0)-(a.score||0));
         valFunc = (s) => `<span class="badge bg-success">Score: ${s.score}</span>`;
     } else if (view === 'frequency') {
-        sortedData = [...data].sort((a,b)=>(b.frekuensi||0)-(a.frekuensi||0));
+        sortedData = safeSort(data, 'frekuensi', true);
         valFunc = (s) => fmtShort(s.frekuensi)+'x'; colorFunc = () => 'text-warning text-dark';
     } else if (view === 'foreign') {
-        sortedData = data.filter(s=>s.netForeign>0).sort((a,b)=>b.netForeign-a.netForeign);
+        sortedData = data.filter(s=>s.netForeign>0).sort((a,b)=>(b.netForeign||0)-(a.netForeign||0));
         valFunc = (s) => '+'+fmtShort(s.netForeign); colorFunc = () => 'text-info';
     } else if (view === 'mcap') {
-        sortedData = [...data].sort((a,b)=>b.mcapVal-a.mcapVal);
+        sortedData = safeSort(data, 'mcapVal', true);
         valFunc = (s) => fmtShort(s.mcapVal); colorFunc = () => 'text-primary';
     }
 
@@ -317,7 +352,10 @@ function renderTable(data) {
             const fmtShort = (n) => { if(Math.abs(n)>=1e12)return(n/1e12).toFixed(1)+' T'; if(Math.abs(n)>=1e9)return(n/1e9).toFixed(1)+' M'; return fmt(n); };
 
             const star = item.isWatchlist ? '<span class="text-warning star-btn me-2">★</span>' : '<span class="text-secondary star-btn me-2">☆</span>';
-            const cell1 = `<td><div class="d-flex align-items-center"><span onclick="toggleWatchlist('${item.kode_saham}')">${star}</span><div><span class="fw-bold kode-saham-btn" onclick="openPortfolioModal('${item.kode_saham}')">${item.kode_saham}</span><br><small class="text-muted" style="font-size:9px;">${(item.nama_perusahaan||'').substring(0,12)}</small></div></div></td>`;
+            
+            // KOLOM 1: Kode Saham Only (Tanpa Nama PT)
+            const cell1 = `<td><div class="d-flex align-items-center"><span onclick="toggleWatchlist('${item.kode_saham}')">${star}</span><div><span class="fw-bold kode-saham-btn" onclick="openPortfolioModal('${item.kode_saham}')">${item.kode_saham}</span></div></div></td>`;
+            
             const cell2 = `<td>${fmt(item.penutupan)}</td>`;
             const asingColor = item.netForeign>0?'text-success':(item.netForeign<0?'text-danger':'text-muted');
             const cell3 = `<td class="text-end"><div><span class="badge bg-light text-dark border" style="font-size:9px;">${item.mcapLabel}</span></div><small class="${asingColor}" style="font-size:10px;">${item.netForeign!==0?fmtShort(item.netForeign):'-'}</small></td>`;
@@ -342,7 +380,7 @@ function renderTable(data) {
     if(footer) footer.innerText = `Menampilkan ${data.length} saham.`;
 }
 
-// CHART ENGINE
+// ... CHART ENGINE ...
 const calcSMA = (d, p) => d.length<p ? null : d.slice(d.length-p).reduce((a,b)=>a+b,0)/p;
 const calcStdDev = (d, p) => { if(d.length<p)return 0; const s=d.slice(d.length-p); const m=s.reduce((a,b)=>a+b,0)/p; return Math.sqrt(s.map(x=>Math.pow(x-m,2)).reduce((a,b)=>a+b,0)/p); };
 const calcStoch = (h, l, c, p) => { if(c.length<p)return null; const sl=l.slice(l.length-p), sh=h.slice(h.length-p); return ((c[c.length-1]-Math.min(...sl))/(Math.max(...sh)-Math.min(...sl)))*100; };
@@ -401,7 +439,7 @@ function updateCalc() {
 }
 const ins = ['input-avg','input-tp-pct','input-cl-pct']; ins.forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('input', updateCalc); });
 
-// CSV UPLOAD & CLEANING
+// CSV UPLOAD & CLEANING (BRUTAL CLEANER FOR ID FORMAT)
 const csvInput = document.getElementById('csv-file-input');
 if (csvInput) {
     csvInput.addEventListener('change', (event) => {
@@ -414,16 +452,22 @@ if (csvInput) {
                 const rawData = results.data;
                 const formattedData = rawData.map(row => {
                     const getVal = (candidates) => { const key = Object.keys(row).find(k => candidates.some(c => c.toLowerCase() === k.trim().toLowerCase())); return key ? row[key] : null; };
+                    
+                    // --- BRUTAL CLEANER ---
+                    // Hapus titik ribuan (misal 10.000 -> 10000)
+                    // Ubah koma desimal jadi titik (misal 5,5 -> 5.5)
                     const clean = (val) => {
                         if (!val) return 0;
                         if (typeof val === 'number') return val;
                         let s = val.toString().trim();
-                        if (s.match(/^[0-9.]+$/) && s.includes('.')) s = s.replace(/\./g, '');
-                        else if (s.includes('.') && s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
-                        else if (s.includes(',') && s.includes('.')) s = s.replace(/,/g, '');
-                        else if (s.includes(',') && !s.includes('.')) s = s.replace(',', '.'); 
-                        return parseFloat(s.replace(/[^0-9.-]/g, '')) || 0;
+                        // 1. Buang semua titik (ribuan ID)
+                        s = s.split('.').join('');
+                        // 2. Ganti koma dengan titik (desimal ID)
+                        s = s.replace(',', '.');
+                        // 3. Parse
+                        return parseFloat(s) || 0;
                     };
+                    
                     const kode = getVal(['Kode Saham', 'Kode', 'Code']);
                     if (!kode) return null;
                     return {
@@ -460,7 +504,7 @@ async function uploadToSupabase(dataSaham) {
             const dbDate = new Date(dbDateStr).getTime();
             if (csvDate < dbDate) {
                 shouldUpdateSnapshot = false;
-                showAlert('info', `⚠️ Arsip Mode: Data CSV (${csvDateStr}) lebih tua dari DB. Snapshot tidak diupdate.`);
+                showAlert('info', `⚠️ Arsip Mode: Data CSV lebih tua. Snapshot tidak diupdate.`);
                 await new Promise(r => setTimeout(r, 2000));
             }
         }
