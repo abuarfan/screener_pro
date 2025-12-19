@@ -90,15 +90,23 @@ window.openPortfolioModal = function(kode) {
     const fTp=document.getElementById('input-tp-pct'), fCl=document.getElementById('input-cl-pct');
     const fNote=document.getElementById('input-notes'), fW=document.getElementById('input-watchlist'), btnDel=document.getElementById('btn-delete-portfolio');
 
+    // FIX: Hanya isi form dengan data tersimpan JIKA benar-benar punya Lot (Bukan cuma Watchlist)
     if (owned && owned.lots > 0) {
-        fAvg.value = owned.avg_price; fLot.value = owned.lots; 
-        fTp.value = owned.tp_pct || ''; fCl.value = owned.cl_pct || '';
-        fNote.value = owned.notes || ''; fW.checked = owned.is_watchlist; 
+        fAvg.value = owned.avg_price; 
+        fLot.value = owned.lots; 
+        fTp.value = owned.tp_pct || ''; 
+        fCl.value = owned.cl_pct || '';
+        fNote.value = owned.notes || ''; 
+        fW.checked = owned.is_watchlist; 
         btnDel.style.display = 'block';
     } else {
-        fAvg.value = stock ? stock.penutupan : 0; fLot.value = 1; 
-        fTp.value = localStorage.getItem('def_tp') || ''; fCl.value = localStorage.getItem('def_cl') || '';
-        fNote.value = ''; fW.checked = owned ? owned.is_watchlist : false; 
+        // Jika belum punya (atau cuma watchlist), isi dengan Harga Pasar & Strategi Default
+        fAvg.value = stock ? stock.penutupan : 0; 
+        fLot.value = 1; 
+        fTp.value = localStorage.getItem('def_tp') || ''; 
+        fCl.value = localStorage.getItem('def_cl') || '';
+        fNote.value = ''; 
+        fW.checked = owned ? owned.is_watchlist : false; // Tetap centang watchlist jika memang ada di list
         btnDel.style.display = 'none';
     }
     updateCalc();
@@ -241,20 +249,8 @@ function renderMarketOverview(data) {
     if(widgetArea) widgetArea.style.display = 'block';
 
     const view = selectView ? selectView.value : 'gainers';
-    
-    // SAFETY FORMATTING: Jika NaN return '-'
-    const fmtDec = (n) => {
-        const val = Number(n);
-        if (isNaN(val)) return '-';
-        return new Intl.NumberFormat('id-ID',{maximumFractionDigits:2}).format(val);
-    };
-    const fmtShort = (n) => {
-        const val = Number(n);
-        if (isNaN(val)) return '-';
-        if(Math.abs(val)>=1e12) return(val/1e12).toFixed(1)+' T'; 
-        if(Math.abs(val)>=1e9) return(val/1e9).toFixed(1)+' M'; 
-        return new Intl.NumberFormat('id-ID').format(val); 
-    };
+    const fmtDec=(n)=>new Intl.NumberFormat('id-ID',{maximumFractionDigits:2}).format(n);
+    const fmtShort=(n)=>{ if(Math.abs(n)>=1e12)return(n/1e12).toFixed(1)+' T'; if(Math.abs(n)>=1e9)return(n/1e9).toFixed(1)+' M'; return new Intl.NumberFormat('id-ID').format(n); };
 
     let sortedData = [];
     let valFunc = (s) => ''; 
@@ -321,10 +317,7 @@ function renderTable(data) {
             const fmtShort = (n) => { if(Math.abs(n)>=1e12)return(n/1e12).toFixed(1)+' T'; if(Math.abs(n)>=1e9)return(n/1e9).toFixed(1)+' M'; return fmt(n); };
 
             const star = item.isWatchlist ? '<span class="text-warning star-btn me-2">★</span>' : '<span class="text-secondary star-btn me-2">☆</span>';
-            
-            // CLEAN TABLE: Hapus Nama Perusahaan, hanya Kode
-            const cell1 = `<td><div class="d-flex align-items-center"><span onclick="toggleWatchlist('${item.kode_saham}')">${star}</span><div><span class="fw-bold kode-saham-btn" onclick="openPortfolioModal('${item.kode_saham}')">${item.kode_saham}</span></div></div></td>`;
-            
+            const cell1 = `<td><div class="d-flex align-items-center"><span onclick="toggleWatchlist('${item.kode_saham}')">${star}</span><div><span class="fw-bold kode-saham-btn" onclick="openPortfolioModal('${item.kode_saham}')">${item.kode_saham}</span><br><small class="text-muted" style="font-size:9px;">${(item.nama_perusahaan||'').substring(0,12)}</small></div></div></td>`;
             const cell2 = `<td>${fmt(item.penutupan)}</td>`;
             const asingColor = item.netForeign>0?'text-success':(item.netForeign<0?'text-danger':'text-muted');
             const cell3 = `<td class="text-end"><div><span class="badge bg-light text-dark border" style="font-size:9px;">${item.mcapLabel}</span></div><small class="${asingColor}" style="font-size:10px;">${item.netForeign!==0?fmtShort(item.netForeign):'-'}</small></td>`;
@@ -349,7 +342,7 @@ function renderTable(data) {
     if(footer) footer.innerText = `Menampilkan ${data.length} saham.`;
 }
 
-// ... CHART ENGINE (Load functions below from previous script or ensure they are present) ...
+// CHART ENGINE
 const calcSMA = (d, p) => d.length<p ? null : d.slice(d.length-p).reduce((a,b)=>a+b,0)/p;
 const calcStdDev = (d, p) => { if(d.length<p)return 0; const s=d.slice(d.length-p); const m=s.reduce((a,b)=>a+b,0)/p; return Math.sqrt(s.map(x=>Math.pow(x-m,2)).reduce((a,b)=>a+b,0)/p); };
 const calcStoch = (h, l, c, p) => { if(c.length<p)return null; const sl=l.slice(l.length-p), sh=h.slice(h.length-p); return ((c[c.length-1]-Math.min(...sl))/(Math.max(...sh)-Math.min(...sl)))*100; };
