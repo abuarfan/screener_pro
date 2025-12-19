@@ -8,15 +8,19 @@
     <style>
         body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f9; }
         .clickable-row:hover { background-color: #f1f3f5 !important; cursor: pointer; }
-        .kode-saham-btn { text-decoration: none; color: #0d6efd; font-weight: 700; }
+        .kode-saham-btn { text-decoration: none; color: #0d6efd; font-weight: 700; font-size: 1.1rem; }
         .kode-saham-btn:hover { text-decoration: underline; }
-        .star-btn { cursor: pointer; font-size: 1.2rem; transition: transform 0.2s; }
-        .star-btn:hover { transform: scale(1.2); color: #ffc107 !important; }
         
         /* Navbar Custom */
         .navbar { background: linear-gradient(90deg, #1a1e21 0%, #2c3e50 100%); }
         .nav-link-custom { color: #ccc; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: 0.3s; padding: 5px 10px; }
         .nav-link-custom:hover { color: #fff; background-color: rgba(255,255,255,0.1); border-radius: 4px; }
+
+        /* Accordion Custom */
+        .accordion-button { padding: 10px 15px; font-weight: 600; font-size: 0.95rem; background-color: #fff; color: #333; }
+        .accordion-button:not(.collapsed) { color: #000; background-color: #e9ecef; box-shadow: none; }
+        .accordion-button:focus { box-shadow: none; border-color: rgba(0,0,0,.125); }
+        .list-group-item { font-size: 0.85rem; }
 
         /* Sticky & Scroll */
         .sticky-controls { position: sticky; top: 60px; z-index: 1020; background-color: #f4f6f9; padding-top: 10px; padding-bottom: 5px; margin-bottom: 10px; }
@@ -30,7 +34,7 @@
     <nav class="navbar navbar-dark shadow-sm sticky-top py-2">
         <div class="container d-flex justify-content-between align-items-center">
             <a class="navbar-brand fw-bold text-warning m-0 p-0" href="#" style="font-size: 1.2rem;">
-                SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 9px; vertical-align: middle;">FINAL</span>
+                SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 9px; vertical-align: middle;">ACCORDION</span>
             </a>
             <div class="d-flex align-items-center gap-2">
                 <a class="nav-link-custom" href="#" onclick="window.openStrategyModal(); return false;">⚙️ STRATEGY</a>
@@ -47,28 +51,99 @@
 
         <div class="row mb-3" id="market-overview-area" style="display:none;">
             <div class="col-12">
-                <div class="card shadow-sm border-0">
-                    <div class="card-header bg-dark text-white py-2 d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center gap-2" style="max-width: 70%;">
-                            <span class="small text-white-50 d-none d-md-inline">Mode:</span>
-                            <select id="market-view-select" class="form-select form-select-sm fw-bold bg-secondary text-white border-0" style="cursor:pointer;" onchange="window.triggerRender()">
-                                <option value="gainers" selected>🚀 Top Gainers</option>
-                                <option value="losers">🔻 Top Losers</option>
-                                <option value="volume">🔊 Top Volume</option>
-                                <option value="ai_picks">🔥 AI Top Picks</option>
-                                <option value="frequency">⚡ Top Frequency</option>
-                                <option value="foreign">💰 Foreign Accumulation</option>
-                                <option value="mcap">🏦 Big Market Cap</option>
-                            </select>
+                <div class="accordion shadow-sm" id="marketAccordion">
+                    
+                    <div class="accordion-item border-0 border-bottom">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGainers" aria-expanded="true">
+                                🚀 Top Gainers
+                            </button>
+                        </h2>
+                        <div id="collapseGainers" class="accordion-collapse collapse show" data-bs-parent="#marketAccordion">
+                            <div class="accordion-body p-0">
+                                <ul class="list-group list-group-flush" id="list-gainers"></ul>
+                            </div>
                         </div>
-                        <span class="badge bg-warning text-dark" id="view-badge">Top 10</span>
                     </div>
-                    <div class="card-body p-0">
-                        <ul class="list-group list-group-flush" id="market-list-container"></ul>
+
+                    <div class="accordion-item border-0 border-bottom">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseLosers">
+                                🔻 Top Losers
+                            </button>
+                        </h2>
+                        <div id="collapseLosers" class="accordion-collapse collapse" data-bs-parent="#marketAccordion">
+                            <div class="accordion-body p-0">
+                                <ul class="list-group list-group-flush" id="list-losers"></ul>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-footer bg-white text-center py-1">
-                        <small class="text-muted" id="market-footer-info">Menampilkan 10 data teratas</small>
+
+                    <div class="accordion-item border-0 border-bottom">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseVolume">
+                                🔊 Top Volume
+                            </button>
+                        </h2>
+                        <div id="collapseVolume" class="accordion-collapse collapse" data-bs-parent="#marketAccordion">
+                            <div class="accordion-body p-0">
+                                <ul class="list-group list-group-flush" id="list-volume"></ul>
+                            </div>
+                        </div>
                     </div>
+
+                    <div class="accordion-item border-0 border-bottom">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFreq">
+                                ⚡ Top Frequency
+                            </button>
+                        </h2>
+                        <div id="collapseFreq" class="accordion-collapse collapse" data-bs-parent="#marketAccordion">
+                            <div class="accordion-body p-0">
+                                <ul class="list-group list-group-flush" id="list-frequency"></ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item border-0 border-bottom">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseForeign">
+                                💰 Foreign Accumulation
+                            </button>
+                        </h2>
+                        <div id="collapseForeign" class="accordion-collapse collapse" data-bs-parent="#marketAccordion">
+                            <div class="accordion-body p-0">
+                                <ul class="list-group list-group-flush" id="list-foreign"></ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item border-0 border-bottom">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMcap">
+                                🏦 Big Market Cap
+                            </button>
+                        </h2>
+                        <div id="collapseMcap" class="accordion-collapse collapse" data-bs-parent="#marketAccordion">
+                            <div class="accordion-body p-0">
+                                <ul class="list-group list-group-flush" id="list-mcap"></ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item border-0">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed bg-warning text-dark fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAI">
+                                🔥 AI Top Picks (Strategy)
+                            </button>
+                        </h2>
+                        <div id="collapseAI" class="accordion-collapse collapse" data-bs-parent="#marketAccordion">
+                            <div class="accordion-body p-0">
+                                <ul class="list-group list-group-flush" id="list-ai-picks"></ul>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -80,7 +155,7 @@
                         <div class="col-md-6 position-relative">
                             <div class="input-group"> 
                                 <span class="input-group-text bg-light border-end-0">🔍</span>
-                                <input type="text" id="input-search" class="form-control border-start-0" placeholder="Cari Kode / Nama..." autocomplete="off">
+                                <input type="text" id="input-search" class="form-control border-start-0" placeholder="Cari Kode Saham..." autocomplete="off">
                             </div>
                             <div id="search-results" class="list-group shadow d-none"></div>
                         </div>
