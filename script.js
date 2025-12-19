@@ -28,22 +28,18 @@ const STRATEGIES = {
 };
 
 // ==========================================
-// 3. WINDOW FUNCTIONS
+// 3. WINDOW FUNCTIONS (HTML ACTIONS)
 // ==========================================
-window.triggerRender = function() {
-    renderMarketOverview(allStocks);
-};
+window.triggerRender = function() { renderMarketOverview(allStocks); };
 
 window.openStrategyModal = function() {
     if (!strategyModalInstance) {
         const el = document.getElementById('strategyModal');
         if(el) strategyModalInstance = new bootstrap.Modal(el);
     }
-    const elTp = document.getElementById('default-tp');
-    const elCl = document.getElementById('default-cl');
-    const elMa = document.getElementById('default-ma');
-    const elRsi = document.getElementById('default-rsi');
-    const elPreset = document.getElementById('strategy-preset');
+    const elTp=document.getElementById('default-tp'), elCl=document.getElementById('default-cl');
+    const elMa=document.getElementById('default-ma'), elRsi=document.getElementById('default-rsi');
+    const elPreset=document.getElementById('strategy-preset');
     
     if(elPreset) elPreset.value = localStorage.getItem('def_preset') || 'custom';
     if(elTp) elTp.value = localStorage.getItem('def_tp') || '';
@@ -60,13 +56,11 @@ window.applyStrategyPreset = function() {
     if (!elPreset) return;
     const val = elPreset.value;
     const elDesc = document.getElementById('strategy-desc');
-    const elTp = document.getElementById('default-tp');
-    const elCl = document.getElementById('default-cl');
-    const elMa = document.getElementById('default-ma');
-    const elRsi = document.getElementById('default-rsi');
+    const elTp=document.getElementById('default-tp'), elCl=document.getElementById('default-cl');
+    const elMa=document.getElementById('default-ma'), elRsi=document.getElementById('default-rsi');
 
     if (val === 'custom') {
-        elDesc.innerText = "Mode Manual: Anda bebas menentukan angka.";
+        elDesc.innerText = "Mode Manual: Bebas input angka.";
         elTp.disabled = false; elCl.disabled = false; elMa.disabled = false; elRsi.disabled = false;
     } else {
         const strat = STRATEGIES[val];
@@ -119,13 +113,10 @@ window.openPortfolioModal = function(kode) {
     document.getElementById('modal-nama-perusahaan').innerText = stock ? stock.nama_perusahaan : '';
     document.getElementById('input-kode').value = kode;
     
-    const formAvg = document.getElementById('input-avg');
-    const formLots = document.getElementById('input-lots');
-    const formTp = document.getElementById('input-tp-pct');
-    const formCl = document.getElementById('input-cl-pct');
-    const formNotes = document.getElementById('input-notes');
-    const checkW = document.getElementById('input-watchlist');
-    const btnDel = document.getElementById('btn-delete-portfolio');
+    const formAvg=document.getElementById('input-avg'), formLots=document.getElementById('input-lots');
+    const formTp=document.getElementById('input-tp-pct'), formCl=document.getElementById('input-cl-pct');
+    const formNotes=document.getElementById('input-notes'), checkW=document.getElementById('input-watchlist');
+    const btnDel=document.getElementById('btn-delete-portfolio');
 
     if (owned) {
         formAvg.value = owned.avg_price; formLots.value = owned.lots;
@@ -162,7 +153,7 @@ async function checkSession() {
         const { data: { session } } = await db.auth.getSession();
         if (!session) window.location.href = 'login.html';
         else { currentUser = session.user; loadData(); }
-    } catch (e) { console.error("Session check:", e); }
+    } catch (e) { console.error(e); }
 }
 checkSession();
 
@@ -171,7 +162,7 @@ document.getElementById('btn-logout')?.addEventListener('click', async () => {
 });
 
 // ==========================================
-// 5. CORE LOGIC
+// 5. CORE LOGIC (LOAD, ANALYZE, FILTER)
 // ==========================================
 async function loadData() {
     showAlert('primary', 'Sinkronisasi data...');
@@ -185,7 +176,7 @@ async function loadData() {
         myPortfolio = portfolioRes.data || [];
         applyFilterAndRender();
         if(allStocks.length > 0) showAlert('success', `Data siap: ${allStocks.length} Emiten.`);
-        else showAlert('warning', 'Data kosong.');
+        else showAlert('warning', 'Data kosong. Silakan upload CSV.');
     } catch (err) { showAlert('danger', 'Gagal load: ' + err.message); }
 }
 
@@ -199,8 +190,10 @@ function applyFilterAndRender() {
 
     let filteredData = [];
     if (currentFilter === 'ALL') filteredData = processedData;
+    else if (currentFilter === 'BUY') filteredData = processedData.filter(s => s.signal === 'BUY' || s.signal === 'ADD-ON 🔥');
     else if (currentFilter === 'WATCHLIST') filteredData = processedData.filter(s => s.isWatchlist || s.isOwned);
     else if (currentFilter === 'OWNED') filteredData = processedData.filter(s => s.isOwned);
+
     renderTable(filteredData);
 }
 
@@ -210,19 +203,14 @@ function analyzeStock(stock, ownedData) {
     const change = close - prev;
     const chgPercent = prev === 0 ? 0 : (change / prev) * 100;
     
-    // Syariah (from CSV)
-    let isSyariah = false;
-    if (stock.syariah_flag && (stock.syariah_flag.toString().toLowerCase() === 'ya' || stock.syariah_flag === 'Y')) {
-        isSyariah = true;
-    }
-
-    // Trends
+    // Trend Simple
     let trendLabel = '-';
     if (close > Number(stock.open_price) && chgPercent > 0) trendLabel = 'Bullish ↗️';
     else if (close < Number(stock.open_price) && chgPercent < 0) trendLabel = 'Bearish ↘️';
 
+    // Fund Checks (Safety NaN)
     const shares = Number(stock.listed_shares) || 0;
-    const mcapVal = close * shares; 
+    const mcapVal = (close * shares) || 0; 
     let mcapLabel = mcapVal >= 10000000000000 ? '🟦 BIG' : (mcapVal >= 1000000000000 ? '🟨 MID' : '⬜ SML');
     const netForeign = (Number(stock.foreign_buy) || 0) - (Number(stock.foreign_sell) || 0);
 
@@ -246,11 +234,14 @@ function analyzeStock(stock, ownedData) {
             portfolioInfo = { avg, lots, tpPct: ownedData.tp_pct, clPct: ownedData.cl_pct, plPercent, status: st, notes: ownedData.notes };
         }
     }
+    // Syariah Flag (Optional)
+    let isSyariah = (stock.syariah_flag && stock.syariah_flag.toString().toLowerCase().includes('y'));
+
     return { ...stock, change, chgPercent, signal, isOwned, isWatchlist, portfolio: portfolioInfo, mcapVal, mcapLabel, netForeign, is_syariah: isSyariah, trendLabel };
 }
 
 // ==========================================
-// 6. RENDER UI (UPDATED: UNIFIED WIDGET)
+// 6. RENDER UI
 // ==========================================
 function calculateScore(stock) {
     let score = 0;
@@ -258,6 +249,7 @@ function calculateScore(stock) {
     const chg = Number(stock.chgPercent)||0;
     const close = Number(stock.penutupan);
     const open = Number(stock.open_price);
+    
     if(chg > 0) score += 10;
     if(close > open) score += 10; 
 
@@ -266,12 +258,12 @@ function calculateScore(stock) {
         if(Number(stock.frekuensi) > 5000) score += 30; else if(Number(stock.frekuensi) > 1000) score += 15;
     } else if (preset === 'conservative') {
         if(stock.mcapLabel === '🟦 BIG') score += 40; else if(stock.mcapLabel === '🟨 MID') score += 10;
-        if((Number(stock.foreign_buy)-Number(stock.foreign_sell)) > 1e9) score += 30; 
+        if(((Number(stock.foreign_buy)||0)-(Number(stock.foreign_sell)||0)) > 1e9) score += 30; 
     } else { 
         if(stock.mcapLabel !== '⬜ SML') score += 15; 
         if(Number(stock.frekuensi) > 2000) score += 15;
         if(chg > 1) score += 15;
-        if((Number(stock.foreign_buy)-Number(stock.foreign_sell)) > 0) score += 15;
+        if(((Number(stock.foreign_buy)||0)-(Number(stock.foreign_sell)||0)) > 0) score += 15;
     }
     return score;
 }
@@ -288,13 +280,11 @@ function renderMarketOverview(data) {
     const fmtDec=(n)=>new Intl.NumberFormat('id-ID',{maximumFractionDigits:2}).format(n);
     const fmtShort=(n)=>{ if(Math.abs(n)>=1e12)return(n/1e12).toFixed(1)+' T'; if(Math.abs(n)>=1e9)return(n/1e9).toFixed(1)+' M'; return new Intl.NumberFormat('id-ID').format(n); };
 
-    // PREPARE DATA BASED ON VIEW
     let sortedData = [];
     let valFunc = (s) => ''; 
     let colorFunc = (s) => 'text-dark';
 
     if (view === 'ai_picks') {
-        // AI Logic
         sortedData = data.map(s=>({...s, score:calculateScore(s)})).sort((a,b)=>b.score-a.score);
         valFunc = (s) => `<span class="badge bg-success">Score: ${s.score}</span>`;
     } else if (view === 'gainers') {
@@ -310,6 +300,7 @@ function renderMarketOverview(data) {
         sortedData = [...data].sort((a,b)=>(b.frekuensi||0)-(a.frekuensi||0));
         valFunc = (s) => fmtShort(s.frekuensi)+'x'; colorFunc = () => 'text-warning text-dark';
     } else if (view === 'foreign') {
+        // Fix: Foreign List must handle numbers correctly
         sortedData = data.filter(s=>s.netForeign>0).sort((a,b)=>b.netForeign-a.netForeign);
         valFunc = (s) => '+'+fmtShort(s.netForeign); colorFunc = () => 'text-info';
     } else if (view === 'mcap') {
@@ -317,7 +308,6 @@ function renderMarketOverview(data) {
         valFunc = (s) => fmtShort(s.mcapVal); colorFunc = () => 'text-primary';
     }
 
-    // RENDER TOP 10 ONLY
     const top10 = sortedData.slice(0, 10);
     const html = top10.map(s => `
         <li class="list-group-item d-flex justify-content-between align-items-center py-2">
@@ -329,7 +319,7 @@ function renderMarketOverview(data) {
         </li>
     `).join('');
 
-    if(listContainer) listContainer.innerHTML = html;
+    if(listContainer) listContainer.innerHTML = html || '<li class="list-group-item text-center text-muted">Data tidak tersedia</li>';
 }
 
 function renderTable(data) {
@@ -350,14 +340,10 @@ function renderTable(data) {
             const fmtShort = (n) => { if(Math.abs(n)>=1e12)return(n/1e12).toFixed(1)+' T'; if(Math.abs(n)>=1e9)return(n/1e9).toFixed(1)+' M'; return fmt(n); };
 
             const star = item.isWatchlist ? '<span class="text-warning star-btn me-2">★</span>' : '<span class="text-secondary star-btn me-2">☆</span>';
-            const syr = item.is_syariah ? '<span class="badge bg-success ms-1" style="font-size:0.6em">S</span>' : '';
-            
-            const cell1 = `<td><div class="d-flex align-items-center"><span onclick="toggleWatchlist('${item.kode_saham}')">${star}</span><div><span class="fw-bold kode-saham-btn" onclick="openPortfolioModal('${item.kode_saham}')">${item.kode_saham}</span>${syr}<br><small class="text-muted" style="font-size:9px;">${(item.nama_perusahaan||'').substring(0,12)}</small></div></div></td>`;
+            const cell1 = `<td><div class="d-flex align-items-center"><span onclick="toggleWatchlist('${item.kode_saham}')">${star}</span><div><span class="fw-bold kode-saham-btn" onclick="openPortfolioModal('${item.kode_saham}')">${item.kode_saham}</span><br><small class="text-muted" style="font-size:9px;">${(item.nama_perusahaan||'').substring(0,12)}</small></div></div></td>`;
             const cell2 = `<td>${fmt(item.penutupan)}</td>`;
-            
             const asingColor = item.netForeign>0?'text-success':(item.netForeign<0?'text-danger':'text-muted');
             const cell3 = `<td class="text-end"><div><span class="badge bg-light text-dark border" style="font-size:9px;">${item.mcapLabel}</span></div><small class="${asingColor}" style="font-size:10px;">${item.netForeign!==0?fmtShort(item.netForeign):'-'}</small></td>`;
-            
             const tColor = item.trendLabel.includes('Bullish')?'text-success':(item.trendLabel.includes('Bearish')?'text-danger':'text-muted');
             const cell4 = `<td class="text-center"><span class="${tColor} fw-bold" style="font-size:0.8rem">${item.trendLabel}</span></td>`;
             
@@ -381,7 +367,7 @@ function renderTable(data) {
 }
 
 // ==========================================
-// 7. CHART ENGINE (LAZY LOADED)
+// 7. CHART ENGINE (LAZY LOADED) - SAMA SEPERTI SEBELUMNYA
 // ==========================================
 const calcSMA = (d, p) => d.length<p ? null : d.slice(d.length-p).reduce((a,b)=>a+b,0)/p;
 const calcStdDev = (d, p) => { if(d.length<p)return 0; const s=d.slice(d.length-p); const m=s.reduce((a,b)=>a+b,0)/p; return Math.sqrt(s.map(x=>Math.pow(x-m,2)).reduce((a,b)=>a+b,0)/p); };
@@ -400,8 +386,6 @@ async function loadAndRenderChart(kode) {
         if(c1) c1.innerHTML='<div class="d-flex align-items-center justify-content-center h-100 text-muted small">Data history belum cukup (< 50 hari).</div>'; 
         return; 
     }
-
-    // Process Data
     const closes = h.map(x=>Number(x.penutupan)), highs = h.map(x=>Number(x.tertinggi)), lows = h.map(x=>Number(x.terendah));
     const dates = h.map(x=>new Date(x.tanggal_perdagangan_terakhir).getTime()), volumes = h.map(x=>Number(x.volume));
 
@@ -415,8 +399,6 @@ async function loadAndRenderChart(kode) {
         if(i>=20) { const bb=calcBB(subC, 20, 2); if(bb) { bbUpper.push({x:dates[i], y:bb.upper}); bbLower.push({x:dates[i], y:bb.lower}); } }
         if(i>=14) stochK.push({x:dates[i], y:calcStoch(subH, subL, subC, 14)});
     }
-
-    // Text Summary
     const lastC=closes[closes.length-1], lastH=highs[highs.length-1], lastL=lows[lows.length-1];
     const P=(lastH+lastL+lastC)/3;
     let obv=0; for(let i=1; i<closes.length; i++) obv += closes[i]>closes[i-1] ? volumes[i] : (closes[i]<closes[i-1]?-volumes[i]:0);
@@ -424,14 +406,12 @@ async function loadAndRenderChart(kode) {
         const c50=ma50[ma50.length-1].y, c200=ma200[ma200.length-1].y, p50=ma50[ma50.length-2].y, p200=ma200[ma200.length-2].y;
         if(p50<p200 && c50>c200) cross='GOLDEN CROSS 🚀'; else if(p50>p200 && c50<c200) cross='DEAD CROSS ☠️'; else cross = c50>c200?'Bullish':'Bearish';
     }
-
     const setT=(id,t)=>{const e=document.getElementById(id);if(e)e.innerText=t;};
     setT('tech-pivot', P.toFixed(0)); setT('tech-r1', (2*P-lastL).toFixed(0)); setT('tech-s1', (2*P-lastH).toFixed(0));
     setT('tech-obv', obv>0?'Akum (+)':'Dist (-)'); setT('tech-cross', cross);
     const lastK = stochK.length>0 ? stochK[stochK.length-1].y : 50;
     setT('tech-stoch', lastK>80?'Overbought 🔴':(lastK<20?'Oversold 🟢':'Netral'));
 
-    // Render Charts
     if(c1) {
         if(priceChart) priceChart.destroy(); c1.innerHTML='';
         priceChart = new ApexCharts(c1, {
@@ -439,26 +419,21 @@ async function loadAndRenderChart(kode) {
             chart: {type:'line',height:250,toolbar:{show:false},animations:{enabled:false}},
             stroke: {width:[1,1,1,2,2], dashArray:[0,5,5,0,0]},
             colors: ['#000','#775DD0','#775DD0','#00E396','#FEB019'],
-            xaxis: {type:'datetime',labels:{show:false}},
-            yaxis: {labels:{formatter:(v)=>new Intl.NumberFormat('id-ID').format(v)}},
-            grid: {padding:{bottom:0}}
+            xaxis: {type:'datetime',labels:{show:false}}, yaxis: {labels:{formatter:(v)=>new Intl.NumberFormat('id-ID').format(v)}}, grid: {padding:{bottom:0}}
         });
         priceChart.render();
     }
     if(c2) {
         if(stochChart) stochChart.destroy(); c2.innerHTML='';
         stochChart = new ApexCharts(c2, {
-            series: [{name:'%K',data:stochK}],
-            chart: {type:'line',height:120,toolbar:{show:false},animations:{enabled:false}},
-            stroke: {width:2}, colors:['#008FFB'], xaxis:{type:'datetime'},
-            yaxis: {max:100,min:0,tickAmount:2},
+            series: [{name:'%K',data:stochK}], chart: {type:'line',height:120,toolbar:{show:false},animations:{enabled:false}},
+            stroke: {width:2}, colors:['#008FFB'], xaxis:{type:'datetime'}, yaxis: {max:100,min:0,tickAmount:2},
             annotations: {yaxis:[{y:20,borderColor:'#00E396'},{y:80,borderColor:'#FF4560'}]}
         });
         stochChart.render();
     }
 }
 
-// Helper: Form Calc
 function updateCalc() {
     const elAvg=document.getElementById('input-avg'), elTp=document.getElementById('input-tp-pct'), elCl=document.getElementById('input-cl-pct');
     if(!elAvg) return;
@@ -469,25 +444,19 @@ function updateCalc() {
 const inputs = ['input-avg','input-tp-pct','input-cl-pct'];
 inputs.forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('input', updateCalc); });
 
-// Helper: Form Submit
 document.getElementById('portfolio-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if(!currentUser) return;
     portfolioModalInstance.hide();
     const payload = {
-        user_id: currentUser.id,
-        kode_saham: document.getElementById('input-kode').value,
-        avg_price: document.getElementById('input-avg').value,
-        lots: document.getElementById('input-lots').value,
-        tp_pct: document.getElementById('input-tp-pct').value || 0,
-        cl_pct: document.getElementById('input-cl-pct').value || 0,
-        notes: document.getElementById('input-notes').value,
-        is_watchlist: document.getElementById('input-watchlist').checked
+        user_id: currentUser.id, kode_saham: document.getElementById('input-kode').value,
+        avg_price: document.getElementById('input-avg').value, lots: document.getElementById('input-lots').value,
+        tp_pct: document.getElementById('input-tp-pct').value || 0, cl_pct: document.getElementById('input-cl-pct').value || 0,
+        notes: document.getElementById('input-notes').value, is_watchlist: document.getElementById('input-watchlist').checked
     };
     const { error } = await db.from('portfolio').upsert(payload, { onConflict: 'user_id, kode_saham' });
     if (error) showAlert('danger', error.message); else { await loadData(); showAlert('success', 'Tersimpan!'); }
 });
-
 document.getElementById('strategy-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
     localStorage.setItem('def_tp', document.getElementById('default-tp').value);
@@ -497,9 +466,8 @@ document.getElementById('strategy-form')?.addEventListener('submit', (e) => {
     localStorage.setItem('def_preset', document.getElementById('strategy-preset').value);
     strategyModalInstance.hide();
     showAlert('success', 'Strategi Tersimpan.');
-    loadData(); // Reload to refresh AI Score
+    loadData();
 });
-
 document.getElementById('btn-delete-portfolio')?.addEventListener('click', async () => {
     if(!confirm("Hapus?")) return;
     portfolioModalInstance.hide();
@@ -507,7 +475,7 @@ document.getElementById('btn-delete-portfolio')?.addEventListener('click', async
     if(!error) { await loadData(); showAlert('success', 'Dihapus.'); }
 });
 
-// CSV UPLOAD
+// CSV UPLOAD & CLEANING (FIX NAN ISSUE)
 const csvInput = document.getElementById('csv-file-input');
 if (csvInput) {
     csvInput.addEventListener('change', (event) => {
@@ -520,7 +488,14 @@ if (csvInput) {
                 const rawData = results.data;
                 const formattedData = rawData.map(row => {
                     const getVal = (candidates) => { const key = Object.keys(row).find(k => candidates.some(c => c.toLowerCase() === k.trim().toLowerCase())); return key ? row[key] : null; };
-                    const clean = (val) => { if (!val) return 0; if (typeof val === 'number') return val; let s = val.toString().replace(/,/g, '').trim(); if (s === '-' || s === '') return 0; return parseFloat(s) || 0; };
+                    // CLEAN FUNCTION (FIXED)
+                    const clean = (val) => {
+                        if (!val) return 0;
+                        if (typeof val === 'number') return val;
+                        // Hapus karakter non-numeric kecuali titik dan minus (asumsi format US/Internasional dari CSV)
+                        let s = val.toString().replace(/[^0-9.-]/g, '');
+                        return parseFloat(s) || 0;
+                    };
                     const kode = getVal(['Kode Saham', 'Kode', 'Code']);
                     if (!kode) return null;
                     return {
@@ -549,30 +524,20 @@ if (csvInput) {
 async function uploadToSupabase(dataSaham) {
     showAlert('warning', `Memproses...`);
     for (let i = 0; i < dataSaham.length; i += 50) {
-        const { error } = await db.from('data_saham').upsert(dataSaham.slice(i, i + 50), { onConflict: 'kode_saham' });
+        await db.from('data_saham').upsert(dataSaham.slice(i, i + 50), { onConflict: 'kode_saham' });
     }
     const historyData = dataSaham.map(item => ({
-        kode_saham: item.kode_saham,
-        tanggal_perdagangan_terakhir: item.tanggal_perdagangan_terakhir,
-        open_price: item.open_price,
-        tertinggi: item.tertinggi,
-        terendah: item.terendah,
-        penutupan: item.penutupan,
-        volume: item.volume,
-        nilai: item.nilai,
-        frekuensi: item.frekuensi,
-        foreign_buy: item.foreign_buy,
-        foreign_sell: item.foreign_sell
+        kode_saham: item.kode_saham, tanggal_perdagangan_terakhir: item.tanggal_perdagangan_terakhir,
+        open_price: item.open_price, tertinggi: item.tertinggi, terendah: item.terendah, penutupan: item.penutupan,
+        volume: item.volume, nilai: item.nilai, frekuensi: item.frekuensi, foreign_buy: item.foreign_buy, foreign_sell: item.foreign_sell
     }));
     for (let i = 0; i < historyData.length; i += 50) {
         const percent = Math.round((i / historyData.length) * 100);
         showAlert('warning', `Upload History: ${percent}% ...`);
         await db.from('history_saham').upsert(historyData.slice(i, i + 50), { onConflict: 'kode_saham, tanggal_perdagangan_terakhir' });
     }
-    showAlert('success', 'Selesai!');
-    setTimeout(loadData, 1500);
+    showAlert('success', 'Selesai!'); setTimeout(loadData, 1500);
 }
-
 function showAlert(type, msg) {
     const box = document.getElementById('status-alert');
     if(box) { box.className = `alert alert-${type}`; box.innerHTML = msg; box.classList.remove('d-none'); }
