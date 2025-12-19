@@ -495,12 +495,21 @@ async function uploadToSupabase(dataSaham) {
     showAlert('warning', `Sedang memproses ${dataSaham.length} data...`);
     const batchSize = 50; 
     let errorCount = 0;
+    let errorMessage = ''; // Variabel untuk menyimpan pesan error
     
     // 1. UPDATE SNAPSHOT (DATA TERKINI)
     for (let i = 0; i < dataSaham.length; i += batchSize) {
         const batch = dataSaham.slice(i, i + batchSize);
+        // Progress bar visual
+        const percent = Math.round((i / dataSaham.length) * 50);
+        showAlert('warning', `Upload Data Terkini: ${percent}% ...`);
+
         const { error } = await db.from('data_saham').upsert(batch, { onConflict: 'kode_saham' });
-        if (error) errorCount++;
+        if (error) {
+            console.error("Error Snapshot:", error);
+            errorCount++;
+            errorMessage = error.message; // Simpan pesan error
+        }
     }
 
     // 2. ARSIP HISTORY
@@ -520,8 +529,16 @@ async function uploadToSupabase(dataSaham) {
 
     for (let i = 0; i < historyData.length; i += batchSize) {
         const batch = historyData.slice(i, i + batchSize);
+        // Progress bar visual
+        const percent = 50 + Math.round((i / historyData.length) * 50);
+        showAlert('warning', `Arsip History: ${percent}% ...`);
+
         const { error } = await db.from('history_saham').upsert(batch, { onConflict: 'kode_saham, tanggal_perdagangan_terakhir' });
-        if (error) errorCount++;
+        if (error) {
+            console.error("Error History:", error);
+            errorCount++;
+            errorMessage = error.message; // Simpan pesan error
+        }
     }
 
     if (errorCount === 0) {
@@ -530,10 +547,10 @@ async function uploadToSupabase(dataSaham) {
         if(csvInput) csvInput.value = '';
         setTimeout(loadData, 1500);
     } else {
-        showAlert('danger', `Selesai dengan error.`);
+        // TAMPILKAN PENYEBAB ERROR KE LAYAR
+        showAlert('danger', `Gagal! Terjadi ${errorCount} error. Detail: <b>${errorMessage}</b>`);
     }
 }
-
 // Helper Alert
 function showAlert(type, msg) {
     const alertBox = document.getElementById('status-alert');
