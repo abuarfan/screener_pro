@@ -1,5 +1,5 @@
 // ==========================================
-// 1. KONFIGURASI SUPABASE (PASTIKAN KONEKSI)
+// 1. KONFIGURASI SUPABASE
 // ==========================================
 const supabaseUrl = 'https://mbccvmalvbdxbornqtqc.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1iY2N2bWFsdmJkeGJvcm5xdHFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDc1MzEsImV4cCI6MjA4MTQ4MzUzMX0.FicPHqOtziJuac5OrNvTc9OG7CEK4Bn_G9F9CYR-N3s';
@@ -28,17 +28,17 @@ const STRATEGIES = {
 };
 
 // ==========================================
-// 3. WINDOW FUNCTIONS (DIPANGGIL DARI HTML)
+// 3. WINDOW FUNCTIONS
 // ==========================================
-// Definisikan fungsi ini DI LEVEL ROOT agar HTML bisa mengaksesnya
+window.triggerRender = function() {
+    renderMarketOverview(allStocks);
+};
+
 window.openStrategyModal = function() {
-    // Lazy init modal
     if (!strategyModalInstance) {
         const el = document.getElementById('strategyModal');
         if(el) strategyModalInstance = new bootstrap.Modal(el);
     }
-    
-    // Load stored values
     const elTp = document.getElementById('default-tp');
     const elCl = document.getElementById('default-cl');
     const elMa = document.getElementById('default-ma');
@@ -58,7 +58,6 @@ window.openStrategyModal = function() {
 window.applyStrategyPreset = function() {
     const elPreset = document.getElementById('strategy-preset');
     if (!elPreset) return;
-    
     const val = elPreset.value;
     const elDesc = document.getElementById('strategy-desc');
     const elTp = document.getElementById('default-tp');
@@ -80,30 +79,15 @@ window.applyStrategyPreset = function() {
     }
 };
 
-window.toggleExpand = function(id, btn) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (el.classList.contains('d-none')) {
-        el.classList.remove('d-none');
-        btn.innerHTML = 'Tutup ⌃';
-    } else {
-        el.classList.add('d-none');
-        btn.innerHTML = 'Lihat Lainnya ⌄';
-    }
-};
-
 window.setFilter = function(type) {
     currentFilter = type;
     applyFilterAndRender();
 };
 
 window.sortTable = function(n) {
-    // Simple sort logic
     const tableBody = document.getElementById('table-body');
     if(!tableBody) return;
     const rows = Array.from(tableBody.querySelectorAll('tr'));
-    
-    // Toggle sort dir (simpan di properti elemen)
     tableBody.dataset.sortDir = tableBody.dataset.sortDir === 'asc' ? 'desc' : 'asc';
     const dir = tableBody.dataset.sortDir;
 
@@ -116,7 +100,6 @@ window.sortTable = function(n) {
             return parseFloat(match[0].replace(/\./g, '').replace(',', '.'));
         };
         const a = parseNum(valA); const b = parseNum(valB);
-        
         if (a < b) return dir === 'asc' ? -1 : 1;
         if (a > b) return dir === 'asc' ? 1 : -1;
         return 0;
@@ -129,16 +112,13 @@ window.openPortfolioModal = function(kode) {
         const el = document.getElementById('portfolioModal');
         if(el) portfolioModalInstance = new bootstrap.Modal(el);
     }
-
     const stock = allStocks.find(s => s.kode_saham === kode);
     const owned = myPortfolio.find(p => p.kode_saham === kode);
     
-    // Fill Info
     document.getElementById('modal-kode-saham').innerText = kode;
     document.getElementById('modal-nama-perusahaan').innerText = stock ? stock.nama_perusahaan : '';
     document.getElementById('input-kode').value = kode;
     
-    // Fill Form
     const formAvg = document.getElementById('input-avg');
     const formLots = document.getElementById('input-lots');
     const formTp = document.getElementById('input-tp-pct');
@@ -154,36 +134,24 @@ window.openPortfolioModal = function(kode) {
         btnDel.style.display = 'block';
     } else {
         formAvg.value = stock ? stock.penutupan : 0; formLots.value = 1;
-        // Default from strategy
         formTp.value = localStorage.getItem('def_tp') || '';
         formCl.value = localStorage.getItem('def_cl') || '';
         formNotes.value = ''; checkW.checked = false;
         btnDel.style.display = 'none';
     }
-
-    // Calc Info Update
     updateCalc();
-
-    // Show Modal First
     if(portfolioModalInstance) portfolioModalInstance.show();
-
-    // Render Chart AFTER modal shows (needs delay for correct sizing)
-    setTimeout(() => {
-        loadAndRenderChart(kode);
-    }, 500);
+    setTimeout(() => { loadAndRenderChart(kode); }, 500);
 };
 
 window.toggleWatchlist = async function(kode) {
     if(!currentUser) return;
     const owned = myPortfolio.find(p => p.kode_saham === kode);
     const newStatus = owned ? !owned.is_watchlist : true;
-    
     const payload = { user_id: currentUser.id, kode_saham: kode, is_watchlist: newStatus };
     if (!owned) { payload.avg_price = 0; payload.lots = 0; }
-    
     const { error } = await db.from('portfolio').upsert(payload, { onConflict: 'user_id, kode_saham' });
-    if(!error) await loadData(); 
-    else showAlert('danger', 'Gagal update watchlist');
+    if(!error) await loadData(); else showAlert('danger', 'Gagal update watchlist');
 };
 
 // ==========================================
@@ -192,12 +160,8 @@ window.toggleWatchlist = async function(kode) {
 async function checkSession() {
     try {
         const { data: { session } } = await db.auth.getSession();
-        if (!session) {
-            window.location.href = 'login.html';
-        } else {
-            currentUser = session.user;
-            loadData(); 
-        }
+        if (!session) window.location.href = 'login.html';
+        else { currentUser = session.user; loadData(); }
     } catch (e) { console.error("Session check:", e); }
 }
 checkSession();
@@ -207,7 +171,7 @@ document.getElementById('btn-logout')?.addEventListener('click', async () => {
 });
 
 // ==========================================
-// 5. CORE LOGIC (LOAD, RENDER, ETC)
+// 5. CORE LOGIC
 // ==========================================
 async function loadData() {
     showAlert('primary', 'Sinkronisasi data...');
@@ -217,18 +181,12 @@ async function loadData() {
         const [marketRes, portfolioRes] = await Promise.all([marketReq, portfolioReq]);
 
         if (marketRes.error) throw marketRes.error;
-
         allStocks = marketRes.data || [];
         myPortfolio = portfolioRes.data || [];
-        
         applyFilterAndRender();
-        
         if(allStocks.length > 0) showAlert('success', `Data siap: ${allStocks.length} Emiten.`);
         else showAlert('warning', 'Data kosong.');
-        
-    } catch (err) {
-        showAlert('danger', 'Gagal load: ' + err.message);
-    }
+    } catch (err) { showAlert('danger', 'Gagal load: ' + err.message); }
 }
 
 function applyFilterAndRender() {
@@ -243,7 +201,6 @@ function applyFilterAndRender() {
     if (currentFilter === 'ALL') filteredData = processedData;
     else if (currentFilter === 'WATCHLIST') filteredData = processedData.filter(s => s.isWatchlist || s.isOwned);
     else if (currentFilter === 'OWNED') filteredData = processedData.filter(s => s.isOwned);
-
     renderTable(filteredData);
 }
 
@@ -264,7 +221,6 @@ function analyzeStock(stock, ownedData) {
     if (close > Number(stock.open_price) && chgPercent > 0) trendLabel = 'Bullish ↗️';
     else if (close < Number(stock.open_price) && chgPercent < 0) trendLabel = 'Bearish ↘️';
 
-    // Fund
     const shares = Number(stock.listed_shares) || 0;
     const mcapVal = close * shares; 
     let mcapLabel = mcapVal >= 10000000000000 ? '🟦 BIG' : (mcapVal >= 1000000000000 ? '🟨 MID' : '⬜ SML');
@@ -281,16 +237,12 @@ function analyzeStock(stock, ownedData) {
             const lots = Number(ownedData.lots);
             const plVal = (close * lots * 100) - (avg * lots * 100);
             const plPercent = (plVal / (avg * lots * 100)) * 100;
-            
-            // Status Logic
             let st = 'HOLD';
             const tpP = ownedData.tp_pct > 0 ? avg*(1+ownedData.tp_pct/100) : 0;
             const clP = ownedData.cl_pct > 0 ? avg*(1-ownedData.cl_pct/100) : 0;
-            
             if(tpP>0 && close>=tpP) st='DONE TP 💰';
             else if(clP>0 && close<=clP) st='HIT CL ⚠️';
             else st = plPercent>0 ? 'HOLD 🟢' : 'HOLD 🔴';
-
             portfolioInfo = { avg, lots, tpPct: ownedData.tp_pct, clPct: ownedData.cl_pct, plPercent, status: st, notes: ownedData.notes };
         }
     }
@@ -298,8 +250,88 @@ function analyzeStock(stock, ownedData) {
 }
 
 // ==========================================
-// 6. RENDER UI
+// 6. RENDER UI (UPDATED: UNIFIED WIDGET)
 // ==========================================
+function calculateScore(stock) {
+    let score = 0;
+    const preset = localStorage.getItem('def_preset') || 'moderate';
+    const chg = Number(stock.chgPercent)||0;
+    const close = Number(stock.penutupan);
+    const open = Number(stock.open_price);
+    if(chg > 0) score += 10;
+    if(close > open) score += 10; 
+
+    if (preset === 'aggressive') { 
+        if(chg > 2) score += 30; 
+        if(Number(stock.frekuensi) > 5000) score += 30; else if(Number(stock.frekuensi) > 1000) score += 15;
+    } else if (preset === 'conservative') {
+        if(stock.mcapLabel === '🟦 BIG') score += 40; else if(stock.mcapLabel === '🟨 MID') score += 10;
+        if((Number(stock.foreign_buy)-Number(stock.foreign_sell)) > 1e9) score += 30; 
+    } else { 
+        if(stock.mcapLabel !== '⬜ SML') score += 15; 
+        if(Number(stock.frekuensi) > 2000) score += 15;
+        if(chg > 1) score += 15;
+        if((Number(stock.foreign_buy)-Number(stock.foreign_sell)) > 0) score += 15;
+    }
+    return score;
+}
+
+function renderMarketOverview(data) {
+    const widgetArea = document.getElementById('market-overview-area');
+    const listContainer = document.getElementById('market-list-container');
+    const selectView = document.getElementById('market-view-select');
+    
+    if (!data || data.length === 0) { if(widgetArea) widgetArea.style.display = 'none'; return; }
+    if(widgetArea) widgetArea.style.display = 'block';
+
+    const view = selectView ? selectView.value : 'ai_picks';
+    const fmtDec=(n)=>new Intl.NumberFormat('id-ID',{maximumFractionDigits:2}).format(n);
+    const fmtShort=(n)=>{ if(Math.abs(n)>=1e12)return(n/1e12).toFixed(1)+' T'; if(Math.abs(n)>=1e9)return(n/1e9).toFixed(1)+' M'; return new Intl.NumberFormat('id-ID').format(n); };
+
+    // PREPARE DATA BASED ON VIEW
+    let sortedData = [];
+    let valFunc = (s) => ''; 
+    let colorFunc = (s) => 'text-dark';
+
+    if (view === 'ai_picks') {
+        // AI Logic
+        sortedData = data.map(s=>({...s, score:calculateScore(s)})).sort((a,b)=>b.score-a.score);
+        valFunc = (s) => `<span class="badge bg-success">Score: ${s.score}</span>`;
+    } else if (view === 'gainers') {
+        sortedData = [...data].sort((a,b)=>b.chgPercent-a.chgPercent);
+        valFunc = (s) => `+${fmtDec(s.chgPercent)}%`; colorFunc = () => 'text-success';
+    } else if (view === 'losers') {
+        sortedData = [...data].sort((a,b)=>a.chgPercent-b.chgPercent);
+        valFunc = (s) => `${fmtDec(s.chgPercent)}%`; colorFunc = () => 'text-danger';
+    } else if (view === 'volume') {
+        sortedData = [...data].sort((a,b)=>b.volume-a.volume);
+        valFunc = (s) => fmtShort(s.volume);
+    } else if (view === 'frequency') {
+        sortedData = [...data].sort((a,b)=>(b.frekuensi||0)-(a.frekuensi||0));
+        valFunc = (s) => fmtShort(s.frekuensi)+'x'; colorFunc = () => 'text-warning text-dark';
+    } else if (view === 'foreign') {
+        sortedData = data.filter(s=>s.netForeign>0).sort((a,b)=>b.netForeign-a.netForeign);
+        valFunc = (s) => '+'+fmtShort(s.netForeign); colorFunc = () => 'text-info';
+    } else if (view === 'mcap') {
+        sortedData = [...data].sort((a,b)=>b.mcapVal-a.mcapVal);
+        valFunc = (s) => fmtShort(s.mcapVal); colorFunc = () => 'text-primary';
+    }
+
+    // RENDER TOP 10 ONLY
+    const top10 = sortedData.slice(0, 10);
+    const html = top10.map(s => `
+        <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+            <div class="d-flex align-items-center">
+                <span class="fw-bold cursor-pointer text-primary me-2" onclick="openPortfolioModal('${s.kode_saham}')">${s.kode_saham}</span>
+                <small class="text-muted" style="font-size:0.75em">${(s.nama_perusahaan||'').substring(0,15)}</small>
+            </div>
+            <span class="${colorFunc(s)} fw-bold" style="font-size:0.9em">${valFunc(s)}</span>
+        </li>
+    `).join('');
+
+    if(listContainer) listContainer.innerHTML = html;
+}
+
 function renderTable(data) {
     const tbody = document.getElementById('table-body');
     const footer = document.getElementById('footer-info');
@@ -346,87 +378,6 @@ function renderTable(data) {
         } catch(e){}
     });
     if(footer) footer.innerText = `Menampilkan ${data.length} saham.`;
-}
-
-function calculateScore(stock) {
-    let score = 0;
-    const preset = localStorage.getItem('def_preset') || 'moderate';
-    
-    // Base Logic
-    const chg = Number(stock.chgPercent)||0;
-    const close = Number(stock.penutupan);
-    const open = Number(stock.open_price);
-    
-    if(chg > 0) score += 10;
-    if(close > open) score += 10; 
-
-    // Dynamic Logic
-    if (preset === 'aggressive') { 
-        if(chg > 2) score += 30; 
-        if(Number(stock.frekuensi) > 5000) score += 30; 
-        else if(Number(stock.frekuensi) > 1000) score += 15;
-    } else if (preset === 'conservative') {
-        if(stock.mcapLabel === '🟦 BIG') score += 40; 
-        else if(stock.mcapLabel === '🟨 MID') score += 10;
-        if((Number(stock.foreign_buy)-Number(stock.foreign_sell)) > 1e9) score += 30; 
-    } else { 
-        if(stock.mcapLabel !== '⬜ SML') score += 15; 
-        if(Number(stock.frekuensi) > 2000) score += 15;
-        if(chg > 1) score += 15;
-        if((Number(stock.foreign_buy)-Number(stock.foreign_sell)) > 0) score += 15;
-    }
-    return score;
-}
-
-function renderMarketOverview(data) {
-    const w = document.getElementById('market-overview-area');
-    if(w) w.style.display = (!data || data.length === 0) ? 'none' : 'flex';
-    
-    const w2 = document.getElementById('tech-recommendation-area');
-    if(w2) w2.style.display = (!data || data.length === 0) ? 'none' : 'flex';
-
-    if (!data || data.length === 0) return;
-
-    // Update Badge
-    const elBadge = document.getElementById('ai-strategy-badge');
-    if(elBadge) {
-        const strat = localStorage.getItem('def_preset') || 'moderate';
-        elBadge.innerText = `Strategy: ${strat.charAt(0).toUpperCase() + strat.slice(1)}`;
-    }
-
-    const fmtDec=(n)=>new Intl.NumberFormat('id-ID',{maximumFractionDigits:2}).format(n);
-    const fmtShort=(n)=>{ if(Math.abs(n)>=1e12)return(n/1e12).toFixed(1)+' T'; if(Math.abs(n)>=1e9)return(n/1e9).toFixed(1)+' M'; return new Intl.NumberFormat('id-ID').format(n); };
-    
-    const createItem=(s,v,c)=>`<li class="list-group-item d-flex justify-content-between align-items-center py-1 bg-transparent"><span class="fw-bold cursor-pointer text-primary" onclick="openPortfolioModal('${s.kode_saham}')">${s.kode_saham}</span><span class="${c} fw-bold" style="font-size:0.85em">${v}</span></li>`;
-    
-    const renderBox = (arr, id, vf, cf) => {
-        const el = document.getElementById(id); if(!el) return;
-        const t5=arr.slice(0,5), n15=arr.slice(5,20);
-        let h = t5.map(s=>createItem(s,vf(s),cf(s))).join('');
-        if(n15.length>0) h+=`<div id="${id}-hidden" class="d-none border-top mt-1 pt-1">${n15.map(s=>createItem(s,vf(s),cf(s))).join('')}</div>`;
-        el.innerHTML = h;
-    };
-
-    renderBox([...data].sort((a,b)=>b.chgPercent-a.chgPercent), 'list-gainers', s=>`+${fmtDec(s.chgPercent)}%`, ()=>'text-success');
-    renderBox([...data].sort((a,b)=>a.chgPercent-b.chgPercent), 'list-losers', s=>`${fmtDec(s.chgPercent)}%`, ()=>'text-danger');
-    renderBox([...data].sort((a,b)=>b.volume-a.volume), 'list-volume', s=>fmtShort(s.volume), ()=>'text-dark');
-    renderBox([...data].sort((a,b)=>b.mcapVal-a.mcapVal), 'list-mcap', s=>fmtShort(s.mcapVal), ()=>'text-primary');
-    renderBox(data.filter(s=>s.netForeign>0).sort((a,b)=>b.netForeign-a.netForeign), 'list-foreign', s=>'+'+fmtShort(s.netForeign), ()=>'text-info');
-    renderBox([...data].sort((a,b)=>(b.frekuensi||0)-(a.frekuensi||0)), 'list-freq', s=>fmtShort(s.frekuensi)+'x', ()=>'text-warning text-dark');
-
-    // AI Score
-    const elTop = document.getElementById('list-worth-buy-top');
-    if(elTop) {
-        const scored = data.map(s=>({...s, score:calculateScore(s)})).sort((a,b)=>b.score-a.score).slice(0,20);
-        elTop.innerHTML = scored.slice(0,5).map(s=>`
-            <div class="col py-2 text-center border-end">
-                <span class="d-block fw-bold text-dark cursor-pointer" onclick="openPortfolioModal('${s.kode_saham}')">${s.kode_saham}</span>
-                <span class="badge bg-success mb-1" style="font-size:0.7em">Score: ${s.score}</span>
-                <br><span class="text-success small fw-bold">+${fmtDec(s.chgPercent)}%</span>
-            </div>`).join('');
-        const elHid = document.getElementById('ul-worth-buy-hidden');
-        if(elHid) elHid.innerHTML = scored.slice(5,20).map(s=>`<li class="list-group-item d-flex justify-content-between align-items-center py-1 bg-light"><div><span class="fw-bold cursor-pointer text-primary" onclick="openPortfolioModal('${s.kode_saham}')">${s.kode_saham}</span><span class="badge bg-secondary ms-2" style="font-size:0.7em">Score: ${s.score}</span></div><span class="text-success fw-bold" style="font-size:0.85em">+${fmtDec(s.chgPercent)}%</span></li>`).join('');
-    }
 }
 
 // ==========================================
@@ -556,7 +507,7 @@ document.getElementById('btn-delete-portfolio')?.addEventListener('click', async
     if(!error) { await loadData(); showAlert('success', 'Dihapus.'); }
 });
 
-// CSV UPLOAD (Copas ulang agar lengkap)
+// CSV UPLOAD
 const csvInput = document.getElementById('csv-file-input');
 if (csvInput) {
     csvInput.addEventListener('change', (event) => {
@@ -597,11 +548,9 @@ if (csvInput) {
 
 async function uploadToSupabase(dataSaham) {
     showAlert('warning', `Memproses...`);
-    // 1. Snapshot
     for (let i = 0; i < dataSaham.length; i += 50) {
         const { error } = await db.from('data_saham').upsert(dataSaham.slice(i, i + 50), { onConflict: 'kode_saham' });
     }
-    // 2. History
     const historyData = dataSaham.map(item => ({
         kode_saham: item.kode_saham,
         tanggal_perdagangan_terakhir: item.tanggal_perdagangan_terakhir,
