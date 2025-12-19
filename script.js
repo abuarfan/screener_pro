@@ -14,11 +14,11 @@ let myPortfolio = [];
 let currentFilter = 'ALL';
 let priceChart = null; 
 
-// --- DEFINISI STRATEGI (UPDATED: Tambah MA Period) ---
+// --- DEFINISI STRATEGI (Updated dengan RSI & MA) ---
 const STRATEGIES = {
-    'conservative': { tp: 15, cl: 7, ma: 50, desc: "Swing (Santai). Indikator: MA 50" },
-    'moderate':     { tp: 8,  cl: 4, ma: 20, desc: "Day Trade (Seimbang). Indikator: MA 20" },
-    'aggressive':   { tp: 3,  cl: 2, ma: 5,  desc: "Scalping (Cepat). Indikator: MA 5" }
+    'conservative': { tp: 15, cl: 7, ma: 50, rsi: 14, desc: "Fokus jangka panjang. Menggunakan MA 50 untuk melihat tren besar." },
+    'moderate':     { tp: 8,  cl: 4, ma: 20, rsi: 14, desc: "Seimbang. Menggunakan MA 20 (Bollinger middle) sebagai acuan." },
+    'aggressive':   { tp: 3,  cl: 2, ma: 5,  rsi: 14, desc: "Cepat keluar masuk. Menggunakan MA 5 untuk menangkap tren sesaat." }
 };
 
 // Inisialisasi Modal
@@ -217,11 +217,11 @@ function renderTable(data) {
 }
 
 // ==========================================
-// 7. WIDGET DASHBOARD (TOP 20 + SEE MORE)
+// 7. WIDGET DASHBOARD (ALL 6 BOXES + VIEW MORE)
 // ==========================================
-// Helper global untuk toggle expand
 window.toggleExpand = (id, btn) => {
     const el = document.getElementById(id);
+    if (!el) return;
     if (el.classList.contains('d-none')) {
         el.classList.remove('d-none');
         btn.innerHTML = 'Tutup ⌃';
@@ -234,6 +234,7 @@ window.toggleExpand = (id, btn) => {
 function renderMarketOverview(data) {
     const widgetArea = document.getElementById('market-overview-area');
     const insightArea = document.getElementById('tech-recommendation-area');
+
     if (!data || data.length === 0) {
         if(widgetArea) widgetArea.style.display = 'none';
         if(insightArea) insightArea.style.display = 'none';
@@ -252,46 +253,30 @@ function renderMarketOverview(data) {
 
     const createItem = (s, v, c) => `<li class="list-group-item d-flex justify-content-between align-items-center py-1"><span class="fw-bold cursor-pointer text-primary" onclick="openPortfolioModal('${s.kode_saham}')">${s.kode_saham}</span><span class="${c} fw-bold" style="font-size:0.85em">${v}</span></li>`;
     
-    // Fungsi Logic Top 20 (5 Visible + 15 Hidden)
-    const renderTop20 = (sortedData, targetId, valFunc, colorFunc) => {
+    // Fungsi Generik
+    const renderBox = (sortedData, listId, valFunc, colorFunc) => {
         const top5 = sortedData.slice(0, 5);
         const next15 = sortedData.slice(5, 20);
-        
         let html = top5.map(s => createItem(s, valFunc(s), colorFunc(s))).join('');
-        
         if (next15.length > 0) {
-            html += `<div id="${targetId}-hidden" class="d-none border-top mt-1 pt-1">`;
+            html += `<div id="${listId}-hidden" class="d-none border-top mt-1 pt-1">`;
             html += next15.map(s => createItem(s, valFunc(s), colorFunc(s))).join('');
             html += `</div>`;
         }
-        document.getElementById(targetId).innerHTML = html;
+        document.getElementById(listId).innerHTML = html;
     };
 
-    // 1. Top Gainers
-    const dataGainers = [...data].sort((a, b) => b.chgPercent - a.chgPercent);
-    renderTop20(dataGainers, 'list-gainers', s => `+${fmtDec(s.chgPercent)}%`, () => 'text-success');
-
-    // 2. Top Losers
-    const dataLosers = [...data].sort((a, b) => a.chgPercent - b.chgPercent);
-    renderTop20(dataLosers, 'list-losers', s => `${fmtDec(s.chgPercent)}%`, () => 'text-danger');
-
-    // 3. Top Volume
-    const dataVolume = [...data].sort((a, b) => b.volume - a.volume);
-    renderTop20(dataVolume, 'list-volume', s => fmt(s.volume), () => 'text-dark');
-
-    // --- INSIGHT WIDGET (Top 5 Only) ---
-    const topMcap = [...data].sort((a, b) => b.mcapVal - a.mcapVal).slice(0, 5);
-    document.getElementById('list-mcap').innerHTML = topMcap.map(s => createItem(s, fmtShort(s.mcapVal), 'text-primary')).join('');
-
-    const topForeign = [...data].sort((a, b) => b.netForeign - a.netForeign).slice(0, 5);
-    document.getElementById('list-foreign').innerHTML = topForeign.map(s => s.netForeign > 0 ? createItem(s, '+' + fmtShort(s.netForeign), 'text-info') : '').join('');
-
-    const topFreq = [...data].sort((a, b) => (b.frekuensi || 0) - (a.frekuensi || 0)).slice(0, 5);
-    document.getElementById('list-freq').innerHTML = topFreq.map(s => createItem(s, fmt(s.frekuensi) + 'x', 'text-warning text-dark')).join('');
+    renderBox([...data].sort((a,b)=>b.chgPercent-a.chgPercent), 'list-gainers', s=>`+${fmtDec(s.chgPercent)}%`, ()=>'text-success');
+    renderBox([...data].sort((a,b)=>a.chgPercent-b.chgPercent), 'list-losers', s=>`${fmtDec(s.chgPercent)}%`, ()=>'text-danger');
+    renderBox([...data].sort((a,b)=>b.volume-a.volume), 'list-volume', s=>fmt(s.volume), ()=>'text-dark');
+    renderBox([...data].sort((a,b)=>b.mcapVal-a.mcapVal), 'list-mcap', s=>fmtShort(s.mcapVal), ()=>'text-primary');
+    const foreignData = data.filter(s => s.netForeign > 0).sort((a,b)=>b.netForeign-a.netForeign);
+    renderBox(foreignData, 'list-foreign', s=>'+'+fmtShort(s.netForeign), ()=>'text-info');
+    renderBox([...data].sort((a,b)=>(b.frekuensi||0)-(a.frekuensi||0)), 'list-freq', s=>fmt(s.frekuensi)+'x', ()=>'text-warning text-dark');
 }
 
 // ==========================================
-// 8. CHART & TECH ENGINE (DINAMIS SESUAI STRATEGI)
+// 8. CHART & TECH ENGINE
 // ==========================================
 function calculateSMA(data, period) {
     if (data.length < period) return null;
@@ -319,11 +304,9 @@ function calculateRSI(prices, period = 14) {
 async function loadAndRenderChart(kode) {
     const chartContainer = document.getElementById('price-chart');
     chartContainer.innerHTML = '<div class="spinner-border text-primary" role="status"></div>'; 
-
-    // AMBIL SETTING MA DARI STRATEGY YANG AKTIF
     const currentPreset = localStorage.getItem('def_preset') || 'moderate';
     const strategy = STRATEGIES[currentPreset] || STRATEGIES['moderate'];
-    const maPeriod = strategy.ma || 20; // Default 20 jika tidak ketemu
+    const maPeriod = strategy.ma || 20; 
 
     const { data: history, error } = await db
         .from('history_saham').select('*').eq('kode_saham', kode)
@@ -337,12 +320,8 @@ async function loadAndRenderChart(kode) {
     const prices = history.map(h => Number(h.penutupan));
     const dates = history.map(h => new Date(h.tanggal_perdagangan_terakhir).getTime());
     const currentPrice = prices[prices.length - 1];
-
-    // HITUNG MA DINAMIS
     const maVal = calculateSMA(prices, maPeriod);
     const trendStatus = maVal ? (currentPrice > maVal ? `UP (MA${maPeriod}) 🟢` : `DOWN (MA${maPeriod}) 🔴`) : '-';
-
-    // RSI
     const rsiVal = calculateRSI(prices, 14);
     let rsiStatus = rsiVal ? (rsiVal > 70 ? `${rsiVal.toFixed(0)} (HOT) 🔴` : (rsiVal < 30 ? `${rsiVal.toFixed(0)} (LOW) 🟢` : `${rsiVal.toFixed(0)}`)) : '-';
 
@@ -350,12 +329,7 @@ async function loadAndRenderChart(kode) {
     document.getElementById('tech-rsi').innerText = rsiStatus;
     document.getElementById('tech-sr').innerText = `${Math.min(...prices.slice(-20))} / ${Math.max(...prices.slice(-20))}`;
     
-    // CHART SERIES
-    const candleSeries = history.map(item => ({
-        x: new Date(item.tanggal_perdagangan_terakhir).getTime(),
-        y: [item.open_price, item.tertinggi, item.terendah, item.penutupan]
-    }));
-    
+    const candleSeries = history.map(item => ({ x: new Date(item.tanggal_perdagangan_terakhir).getTime(), y: [item.open_price, item.tertinggi, item.terendah, item.penutupan] }));
     let maSeries = [];
     for(let i = maPeriod; i < history.length; i++) {
         const slice = prices.slice(i-maPeriod, i);
@@ -373,7 +347,6 @@ async function loadAndRenderChart(kode) {
         plotOptions: { candlestick: { colors: { upward: '#198754', downward: '#dc3545' } } },
         grid: { borderColor: '#f1f1f1' }
     };
-
     if (priceChart) priceChart.destroy();
     chartContainer.innerHTML = ''; 
     priceChart = new ApexCharts(chartContainer, options);
@@ -381,7 +354,7 @@ async function loadAndRenderChart(kode) {
 }
 
 // ==========================================
-// 9. MODAL LOGIC & UPLOAD
+// 9. MODAL & UPLOAD
 // ==========================================
 let sortDir = 'asc';
 window.sortTable = (n) => {
@@ -406,18 +379,28 @@ window.sortTable = (n) => {
     rows.forEach(row => tableBody.appendChild(row));
 };
 
+// STRATEGY LOGIC (LOCK/UNLOCK)
 window.applyStrategyPreset = () => {
     const elPreset = document.getElementById('strategy-preset');
     const elTp = document.getElementById('default-tp');
     const elCl = document.getElementById('default-cl');
+    const elMa = document.getElementById('default-ma');
+    const elRsi = document.getElementById('default-rsi');
     const elDesc = document.getElementById('strategy-desc');
-    if (!elPreset || !elTp) return;
+
+    if (!elPreset) return;
     const val = elPreset.value;
-    if (val === 'custom') elDesc.innerText = "Manual custom.";
-    else {
+
+    if (val === 'custom') {
+        elDesc.innerText = "Mode Manual: Anda bebas menentukan angka.";
+        elTp.disabled = false; elCl.disabled = false; elMa.disabled = false; elRsi.disabled = false;
+    } else {
         const strat = STRATEGIES[val];
         if (strat) {
-            elTp.value = strat.tp; elCl.value = strat.cl; elDesc.innerText = strat.desc;
+            elTp.value = strat.tp; elCl.value = strat.cl;
+            elMa.value = strat.ma; elRsi.value = strat.rsi;
+            elDesc.innerText = strat.desc;
+            elTp.disabled = true; elCl.disabled = true; elMa.disabled = true; elRsi.disabled = true;
         }
     }
 };
@@ -425,11 +408,17 @@ window.applyStrategyPreset = () => {
 window.openStrategyModal = () => {
     const elTp = document.getElementById('default-tp');
     const elCl = document.getElementById('default-cl');
+    const elMa = document.getElementById('default-ma');
+    const elRsi = document.getElementById('default-rsi');
     const elPreset = document.getElementById('strategy-preset');
+    
+    if(elPreset) elPreset.value = localStorage.getItem('def_preset') || 'custom';
     if(elTp) elTp.value = localStorage.getItem('def_tp') || '';
     if(elCl) elCl.value = localStorage.getItem('def_cl') || '';
-    if(elPreset) elPreset.value = localStorage.getItem('def_preset') || 'custom';
-    window.applyStrategyPreset(); // Update deskripsi saat buka
+    if(elMa) elMa.value = localStorage.getItem('def_ma') || '20';
+    if(elRsi) elRsi.value = localStorage.getItem('def_rsi') || '14';
+
+    window.applyStrategyPreset(); 
     if (!strategyModal) strategyModal = new bootstrap.Modal(document.getElementById('strategyModal'));
     strategyModal.show();
 };
@@ -438,9 +427,11 @@ document.getElementById('strategy-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
     localStorage.setItem('def_tp', document.getElementById('default-tp').value);
     localStorage.setItem('def_cl', document.getElementById('default-cl').value);
+    localStorage.setItem('def_ma', document.getElementById('default-ma').value);
+    localStorage.setItem('def_rsi', document.getElementById('default-rsi').value);
     localStorage.setItem('def_preset', document.getElementById('strategy-preset').value);
     strategyModal.hide();
-    showAlert('success', 'Strategi & Indikator Chart tersimpan.');
+    showAlert('success', 'Konfigurasi Strategi Tersimpan.');
 });
 
 // Portofolio logic
