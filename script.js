@@ -286,46 +286,74 @@ function renderTable(data) {
 }
 
 // ==========================================
-// 7. WIDGET DASHBOARD
+// 7. WIDGET DASHBOARD (UPDATED)
 // ==========================================
 function renderMarketOverview(data) {
+    // Area Widget Utama
     const widgetArea = document.getElementById('market-overview-area');
     const listGainers = document.getElementById('list-gainers');
     const listLosers = document.getElementById('list-losers');
     const listVolume = document.getElementById('list-volume');
+    
+    // Area Widget Insight (Baru)
+    const insightArea = document.getElementById('tech-recommendation-area');
+    const listMcap = document.getElementById('list-mcap');
+    const listForeign = document.getElementById('list-foreign');
+    const listFreq = document.getElementById('list-freq');
 
     if (!data || data.length === 0) {
         if(widgetArea) widgetArea.style.display = 'none';
+        if(insightArea) insightArea.style.display = 'none';
         return;
     }
+    
     if(widgetArea) widgetArea.style.display = 'flex';
+    if(insightArea) insightArea.style.display = 'flex';
 
     const fmt = (n) => new Intl.NumberFormat('id-ID').format(n);
     const fmtDec = (n) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(n);
+    const fmtShort = (n) => {
+        if(Math.abs(n) >= 1000000000000) return (n/1000000000000).toFixed(1) + ' T';
+        if(Math.abs(n) >= 1000000000) return (n/1000000000).toFixed(1) + ' M';
+        return fmt(n);
+    };
 
+    // Helper Template List Item
+    const createItem = (stock, valueLabel, colorClass) => `
+        <li class="list-group-item d-flex justify-content-between align-items-center py-1">
+            <span class="fw-bold cursor-pointer text-primary" onclick="openPortfolioModal('${stock.kode_saham}')">${stock.kode_saham}</span>
+            <span class="${colorClass} fw-bold" style="font-size:0.85em">${valueLabel}</span>
+        </li>`;
+
+    // --- ROW 1: HARGA ---
     // Top Gainers
     const topGainers = [...data].sort((a, b) => b.chgPercent - a.chgPercent).slice(0, 5);
-    listGainers.innerHTML = topGainers.map(s => `
-        <li class="list-group-item d-flex justify-content-between align-items-center py-1">
-            <span class="fw-bold cursor-pointer text-primary" onclick="openPortfolioModal('${s.kode_saham}')">${s.kode_saham}</span>
-            <span class="text-success fw-bold">+${fmtDec(s.chgPercent)}%</span>
-        </li>`).join('');
+    listGainers.innerHTML = topGainers.map(s => createItem(s, `+${fmtDec(s.chgPercent)}%`, 'text-success')).join('');
 
     // Top Losers
     const topLosers = [...data].sort((a, b) => a.chgPercent - b.chgPercent).slice(0, 5);
-    listLosers.innerHTML = topLosers.map(s => `
-        <li class="list-group-item d-flex justify-content-between align-items-center py-1">
-            <span class="fw-bold cursor-pointer text-primary" onclick="openPortfolioModal('${s.kode_saham}')">${s.kode_saham}</span>
-            <span class="text-danger fw-bold">${fmtDec(s.chgPercent)}%</span>
-        </li>`).join('');
+    listLosers.innerHTML = topLosers.map(s => createItem(s, `${fmtDec(s.chgPercent)}%`, 'text-danger')).join('');
 
     // Top Volume
     const topVolume = [...data].sort((a, b) => b.volume - a.volume).slice(0, 5);
-    listVolume.innerHTML = topVolume.map(s => `
-        <li class="list-group-item d-flex justify-content-between align-items-center py-1">
-            <span class="fw-bold cursor-pointer text-primary" onclick="openPortfolioModal('${s.kode_saham}')">${s.kode_saham}</span>
-            <span class="text-dark small">${fmt(s.volume)}</span>
-        </li>`).join('');
+    listVolume.innerHTML = topVolume.map(s => createItem(s, fmt(s.volume), 'text-dark')).join('');
+
+    // --- ROW 2: INSIGHT ---
+    // Big Market Cap
+    const topMcap = [...data].sort((a, b) => b.mcapVal - a.mcapVal).slice(0, 5);
+    listMcap.innerHTML = topMcap.map(s => createItem(s, fmtShort(s.mcapVal), 'text-primary')).join('');
+
+    // Foreign Accumulation (Net Buy)
+    const topForeign = [...data].sort((a, b) => b.netForeign - a.netForeign).slice(0, 5);
+    listForeign.innerHTML = topForeign.map(s => {
+        // Hanya tampilkan jika Net Buy positif
+        if(s.netForeign <= 0) return '';
+        return createItem(s, '+' + fmtShort(s.netForeign), 'text-info');
+    }).join('');
+
+    // Top Frequency (Saham Paling Ramai Ditransaksikan)
+    const topFreq = [...data].sort((a, b) => (b.frekuensi || 0) - (a.frekuensi || 0)).slice(0, 5);
+    listFreq.innerHTML = topFreq.map(s => createItem(s, fmt(s.frekuensi) + 'x', 'text-warning text-dark')).join('');
 }
 
 // ==========================================
