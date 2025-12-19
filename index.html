@@ -30,7 +30,7 @@
     <nav class="navbar navbar-dark shadow-sm sticky-top py-2">
         <div class="container d-flex justify-content-between align-items-center">
             <a class="navbar-brand fw-bold text-warning m-0 p-0" href="#" style="font-size: 1.2rem;">
-                SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 9px; vertical-align: middle;">LITE</span>
+                SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 9px; vertical-align: middle;">FIXED</span>
             </a>
             <div class="d-flex align-items-center gap-2">
                 <a class="nav-link-custom" href="#" onclick="window.openStrategyModal(); return false;">⚙️ STRATEGY</a>
@@ -88,6 +88,9 @@
                             <div class="btn-group w-100 shadow-sm" role="group">
                                 <input type="radio" class="btn-check" name="btnradio" id="filter-all" autocomplete="off" checked onclick="setFilter('ALL')">
                                 <label class="btn btn-outline-secondary fw-semibold" for="filter-all">Semua</label>
+                                
+                                <input type="radio" class="btn-check" name="btnradio" id="filter-buy" autocomplete="off" onclick="setFilter('BUY')">
+                                <label class="btn btn-outline-success fw-semibold" for="filter-buy">🚀 Buy Only</label>
                                 
                                 <input type="radio" class="btn-check" name="btnradio" id="filter-watchlist" autocomplete="off" onclick="setFilter('WATCHLIST')">
                                 <label class="btn btn-outline-warning fw-semibold" for="filter-watchlist">⭐ Watch</label>
