@@ -384,66 +384,18 @@ try {
     strategyModal = new bootstrap.Modal(document.getElementById('strategyModal'));
 } catch(e) {}
 
-/ --- DEFINISI PRESETS STRATEGI ---
-const STRATEGIES = {
-    'conservative': { tp: 15, cl: 7, desc: "Cocok untuk Swing Trader. Target tinggi, toleransi risiko agak lebar." },
-    'moderate':     { tp: 8,  cl: 4, desc: "Seimbang (Risk Reward 1:2). Cocok untuk day trading santai." },
-    'aggressive':   { tp: 3,  cl: 2, desc: "Gaya Scalper. Cuan dikit bungkus, rugi dikit buang." }
-};
-
-const inputPreset = document.getElementById('strategy-preset');
-const inputDefTp = document.getElementById('default-tp');
-const inputDefCl = document.getElementById('default-cl');
-const txtStratDesc = document.getElementById('strategy-desc');
-
-// 1. Fungsi saat Dropdown Berubah
-window.applyStrategyPreset = () => {
-    const val = inputPreset.value;
-    
-    if (val === 'custom') {
-        txtStratDesc.innerText = "Anda menentukan angka sendiri secara manual.";
-        // Tidak mengubah angka input, biarkan user edit
-    } else {
-        const strat = STRATEGIES[val];
-        if (strat) {
-            inputDefTp.value = strat.tp;
-            inputDefCl.value = strat.cl;
-            txtStratDesc.innerText = strat.desc;
-        }
-    }
-};
-
-// 2. Buka Modal Strategy (Load Data)
+// --- STRATEGY ---
 window.openStrategyModal = () => {
-    // Load angka yang tersimpan
-    const savedTp = localStorage.getItem('def_tp');
-    const savedCl = localStorage.getItem('def_cl');
-    const savedPreset = localStorage.getItem('def_preset') || 'custom'; // Default custom
-
-    // Set nilai ke input
-    if(inputDefTp) inputDefTp.value = savedTp || '';
-    if(inputDefCl) inputDefCl.value = savedCl || '';
-    if(inputPreset) inputPreset.value = savedPreset;
-    
-    // Update deskripsi sesuai preset yang tersimpan
-    if(savedPreset !== 'custom' && STRATEGIES[savedPreset]) {
-        txtStratDesc.innerText = STRATEGIES[savedPreset].desc;
-    }
-
+    if(document.getElementById('default-tp')) document.getElementById('default-tp').value = localStorage.getItem('def_tp') || '';
+    if(document.getElementById('default-cl')) document.getElementById('default-cl').value = localStorage.getItem('def_cl') || '';
     strategyModal.show();
 };
-
-// 3. Simpan Strategy
 document.getElementById('strategy-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    
-    // Simpan ke Browser
-    localStorage.setItem('def_tp', inputDefTp.value);
-    localStorage.setItem('def_cl', inputDefCl.value);
-    localStorage.setItem('def_preset', inputPreset.value);
-    
+    localStorage.setItem('def_tp', document.getElementById('default-tp').value);
+    localStorage.setItem('def_cl', document.getElementById('default-cl').value);
     strategyModal.hide();
-    showAlert('success', `Strategi tersimpan! (TP: ${inputDefTp.value}%, CL: ${inputDefCl.value}%)`);
+    showAlert('success', 'Strategi tersimpan.');
 });
 
 // --- CHART ---
