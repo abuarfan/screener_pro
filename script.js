@@ -77,6 +77,7 @@ function applyFilterAndRender() {
         const owned = myPortfolio.find(p => p.kode_saham === stock.kode_saham);
         return analyzeStock(stock, owned);
     });
+    renderMarketOverview(processedData);
 
     let filteredData = [];
     if (currentFilter === 'ALL') {
