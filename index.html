@@ -12,23 +12,18 @@
         .kode-saham-btn:hover { text-decoration: underline; }
         .star-btn { cursor: pointer; font-size: 1.2rem; transition: transform 0.2s; }
         .star-btn:hover { transform: scale(1.2); color: #ffc107 !important; }
-        @keyframes highlightRow { 0% { background-color: #ffeeba; } 100% { background-color: transparent; } }
-        .highlight-search { animation: highlightRow 2s ease-out; }
-        #search-results { max-height: 250px; overflow-y: auto; position: absolute; width: 100%; z-index: 1060; border-radius: 0 0 8px 8px; }
         
-        /* Sticky Elements */
-        .sticky-controls { position: sticky; top: 70px; z-index: 1020; background-color: #f4f6f9; padding-top: 10px; padding-bottom: 5px; margin-bottom: 10px; }
+        /* Navbar Custom */
+        .navbar { background: linear-gradient(90deg, #1a1e21 0%, #2c3e50 100%); }
+        .nav-link-custom { color: #ccc; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: 0.3s; padding: 5px 10px; }
+        .nav-link-custom:hover { color: #fff; background-color: rgba(255,255,255,0.1); border-radius: 4px; }
+
+        /* Sticky Header */
+        .sticky-controls { position: sticky; top: 60px; z-index: 1020; background-color: #f4f6f9; padding-top: 10px; padding-bottom: 5px; margin-bottom: 10px; }
         .table th:first-child, .table td:first-child { position: sticky; left: 0; z-index: 20; background-color: #fff !important; border-right: 2px solid #dee2e6; }
         .table th:first-child { z-index: 30; background-color: #f8f9fa !important; }
-        
-        /* Custom Navbar */
-        .navbar { background: linear-gradient(90deg, #1a1e21 0%, #2c3e50 100%); }
-        .nav-link-custom { color: #ccc; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: 0.3s; }
-        .nav-link-custom:hover { color: #fff; }
 
-        /* Card Adjustments */
-        .card-header { font-size: 0.9rem; letter-spacing: 0.5px; }
-        .list-group-item { font-size: 0.85rem; border-left: none; border-right: none; }
+        #search-results { max-height: 250px; overflow-y: auto; position: absolute; width: 100%; z-index: 1060; border-radius: 0 0 8px 8px; }
     </style>
 </head>
 <body>
@@ -38,10 +33,10 @@
             <a class="navbar-brand fw-bold text-warning m-0 p-0" href="#" style="font-size: 1.2rem;">
                 SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 9px; vertical-align: middle;">ULTIMATE</span>
             </a>
-            <div class="d-flex align-items-center gap-3">
-                <a class="nav-link-custom" onclick="openStrategyModal()">⚙️ STRATEGY</a>
-                <a class="nav-link-custom" onclick="document.getElementById('csv-file-input').click()">📂 UPLOAD</a>
-                <a class="nav-link-custom text-danger" id="btn-logout">LOGOUT</a>
+            <div class="d-flex align-items-center gap-2">
+                <a class="nav-link-custom" href="#" onclick="window.openStrategyModal(); return false;">⚙️ STRATEGY</a>
+                <a class="nav-link-custom" href="#" onclick="document.getElementById('csv-file-input').click(); return false;">📂 UPLOAD</a>
+                <a class="nav-link-custom text-danger" href="#" id="btn-logout">LOGOUT</a>
             </div>
             <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
         </div>
@@ -56,21 +51,21 @@
                 <div class="card shadow-sm h-100 border-success">
                     <div class="card-header bg-success text-white py-1 d-flex justify-content-between"><span>🚀 Top Gainers</span><span class="badge bg-white text-success">Top 20</span></div>
                     <ul class="list-group list-group-flush" id="list-gainers"></ul>
-                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="small fw-bold text-success text-decoration-none" onclick="toggleExpand('list-gainers-hidden', this)">Lihat Lainnya ⌄</a></div>
+                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="small fw-bold text-success text-decoration-none" onclick="toggleExpand('list-gainers-hidden', this); return false;">Lihat Lainnya ⌄</a></div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="card shadow-sm h-100 border-danger">
                     <div class="card-header bg-danger text-white py-1 d-flex justify-content-between"><span>🔻 Top Losers</span><span class="badge bg-white text-danger">Top 20</span></div>
                     <ul class="list-group list-group-flush" id="list-losers"></ul>
-                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="small fw-bold text-danger text-decoration-none" onclick="toggleExpand('list-losers-hidden', this)">Lihat Lainnya ⌄</a></div>
+                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="small fw-bold text-danger text-decoration-none" onclick="toggleExpand('list-losers-hidden', this); return false;">Lihat Lainnya ⌄</a></div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="card shadow-sm h-100 border-primary">
                     <div class="card-header bg-primary text-white py-1 d-flex justify-content-between"><span>🔊 Top Volume</span><span class="badge bg-white text-primary">Top 20</span></div>
                     <ul class="list-group list-group-flush" id="list-volume"></ul>
-                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="small fw-bold text-primary text-decoration-none" onclick="toggleExpand('list-volume-hidden', this)">Lihat Lainnya ⌄</a></div>
+                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="small fw-bold text-primary text-decoration-none" onclick="toggleExpand('list-volume-hidden', this); return false;">Lihat Lainnya ⌄</a></div>
                 </div>
             </div>
         </div>
@@ -80,21 +75,21 @@
                 <div class="card shadow-sm h-100 border-dark">
                     <div class="card-header bg-dark text-white py-1 d-flex justify-content-between"><span>🏦 Big Market Cap</span><span class="badge bg-secondary text-white border">Top 20</span></div>
                     <ul class="list-group list-group-flush" id="list-mcap"></ul>
-                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="small fw-bold text-dark text-decoration-none" onclick="toggleExpand('list-mcap-hidden', this)">Lihat Lainnya ⌄</a></div>
+                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="small fw-bold text-dark text-decoration-none" onclick="toggleExpand('list-mcap-hidden', this); return false;">Lihat Lainnya ⌄</a></div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="card shadow-sm h-100 border-info">
                     <div class="card-header bg-info text-dark py-1 d-flex justify-content-between"><span>💰 Foreign Accum</span><span class="badge bg-white text-info">Top 20</span></div>
                     <ul class="list-group list-group-flush" id="list-foreign"></ul>
-                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="small fw-bold text-info text-decoration-none" onclick="toggleExpand('list-foreign-hidden', this)">Lihat Lainnya ⌄</a></div>
+                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="small fw-bold text-info text-decoration-none" onclick="toggleExpand('list-foreign-hidden', this); return false;">Lihat Lainnya ⌄</a></div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="card shadow-sm h-100 border-warning">
                     <div class="card-header bg-warning text-dark py-1 d-flex justify-content-between"><span>⚡ Top Frequency</span><span class="badge bg-white text-dark">Top 20</span></div>
                     <ul class="list-group list-group-flush" id="list-freq"></ul>
-                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="small fw-bold text-dark text-decoration-none" onclick="toggleExpand('list-freq-hidden', this)">Lihat Lainnya ⌄</a></div>
+                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="small fw-bold text-dark text-decoration-none" onclick="toggleExpand('list-freq-hidden', this); return false;">Lihat Lainnya ⌄</a></div>
                 </div>
             </div>
         </div>
@@ -165,7 +160,7 @@
                         </div>
                     </div>
                     <div class="card-footer p-1 text-center bg-white">
-                        <a href="#" class="text-decoration-none small fw-bold text-dark" onclick="toggleExpand('list-worth-buy-hidden', this)">Lihat Lainnya ⌄</a>
+                        <a href="#" class="text-decoration-none small fw-bold text-dark" onclick="toggleExpand('list-worth-buy-hidden', this); return false;">Lihat Lainnya ⌄</a>
                     </div>
                 </div>
             </div>
@@ -184,8 +179,8 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div id="price-chart" class="mb-1 border rounded p-1 bg-white" style="height: 250px;"></div>
-                    <div id="stoch-chart" class="mb-2 border rounded p-1 bg-white" style="height: 120px;"></div>
+                    <div id="price-chart" class="mb-1 border rounded p-1 bg-white" style="height: 250px; position: relative;"></div>
+                    <div id="stoch-chart" class="mb-2 border rounded p-1 bg-white" style="height: 120px; position: relative;"></div>
 
                     <div class="card bg-light border-0 mb-3">
                         <div class="card-body p-2">
@@ -256,5 +251,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="script.js"></script>
+
 </body>
 </html>
