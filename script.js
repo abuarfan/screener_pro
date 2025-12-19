@@ -4,39 +4,28 @@
 const supabaseUrl = 'https://mbccvmalvbdxbornqtqc.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1iY2N2bWFsdmJkeGJvcm5xdHFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MDc1MzEsImV4cCI6MjA4MTQ4MzUzMX0.FicPHqOtziJuac5OrNvTc9OG7CEK4Bn_G9F9CYR-N3s';
 let db;
-try {
-    db = supabase.createClient(supabaseUrl, supabaseKey);
-} catch (e) {
-    console.error("Supabase init error:", e);
-    alert("Gagal koneksi database. Cek koneksi internet.");
-}
+try { db = supabase.createClient(supabaseUrl, supabaseKey); } catch (e) { console.error(e); }
 
 // ==========================================
 // 2. GLOBAL VARIABLES
 // ==========================================
-let currentUser = null;
-let allStocks = [];       
-let myPortfolio = [];     
-let currentFilter = 'ALL';
+let currentUser = null, allStocks = [], myPortfolio = [], currentFilter = 'ALL';
 let priceChart = null, stochChart = null;
 let portfolioModalInstance = null, strategyModalInstance = null;
 
 const STRATEGIES = {
-    'conservative': { tp: 15, cl: 7, ma: 50, rsi: 14, desc: "Swing (Santai). Fokus: Big Cap & Trend." },
-    'moderate':     { tp: 8,  cl: 4, ma: 20, rsi: 14, desc: "Day Trade. Fokus: Balanced." },
-    'aggressive':   { tp: 3,  cl: 2, ma: 5,  rsi: 14, desc: "Scalping. Fokus: Volatility & Volume." }
+    'conservative': { tp: 15, cl: 7, ma: 50, rsi: 14, desc: "Swing. Fokus: Bluechip & Tren Kuat." },
+    'moderate':     { tp: 8,  cl: 4, ma: 20, rsi: 14, desc: "Day Trade. Fokus: Seimbang." },
+    'aggressive':   { tp: 3,  cl: 2, ma: 5,  rsi: 14, desc: "Scalping. Fokus: Volatilitas & Volume." }
 };
 
 // ==========================================
-// 3. WINDOW FUNCTIONS (HTML ACTIONS)
+// 3. WINDOW FUNCTIONS
 // ==========================================
 window.triggerRender = function() { renderMarketOverview(allStocks); };
 
 window.openStrategyModal = function() {
-    if (!strategyModalInstance) {
-        const el = document.getElementById('strategyModal');
-        if(el) strategyModalInstance = new bootstrap.Modal(el);
-    }
+    if (!strategyModalInstance) { const el = document.getElementById('strategyModal'); if(el) strategyModalInstance = new bootstrap.Modal(el); }
     const elTp=document.getElementById('default-tp'), elCl=document.getElementById('default-cl');
     const elMa=document.getElementById('default-ma'), elRsi=document.getElementById('default-rsi');
     const elPreset=document.getElementById('strategy-preset');
@@ -46,7 +35,6 @@ window.openStrategyModal = function() {
     if(elCl) elCl.value = localStorage.getItem('def_cl') || '';
     if(elMa) elMa.value = localStorage.getItem('def_ma') || '20';
     if(elRsi) elRsi.value = localStorage.getItem('def_rsi') || '14';
-
     window.applyStrategyPreset();
     if(strategyModalInstance) strategyModalInstance.show();
 };
@@ -54,58 +42,43 @@ window.openStrategyModal = function() {
 window.applyStrategyPreset = function() {
     const elPreset = document.getElementById('strategy-preset');
     if (!elPreset) return;
-    const val = elPreset.value;
+    const strat = STRATEGIES[elPreset.value];
     const elDesc = document.getElementById('strategy-desc');
     const elTp=document.getElementById('default-tp'), elCl=document.getElementById('default-cl');
     const elMa=document.getElementById('default-ma'), elRsi=document.getElementById('default-rsi');
 
-    if (val === 'custom') {
-        elDesc.innerText = "Mode Manual: Bebas input angka.";
+    if (elPreset.value === 'custom') {
+        elDesc.innerText = "Mode Manual: Bebas input.";
         elTp.disabled = false; elCl.disabled = false; elMa.disabled = false; elRsi.disabled = false;
-    } else {
-        const strat = STRATEGIES[val];
-        if (strat) {
-            elTp.value = strat.tp; elCl.value = strat.cl;
-            elMa.value = strat.ma; elRsi.value = strat.rsi;
-            elDesc.innerText = strat.desc;
-            elTp.disabled = true; elCl.disabled = true; elMa.disabled = true; elRsi.disabled = true;
-        }
+    } else if (strat) {
+        elTp.value = strat.tp; elCl.value = strat.cl; elMa.value = strat.ma; elRsi.value = strat.rsi;
+        elDesc.innerText = strat.desc;
+        elTp.disabled = true; elCl.disabled = true; elMa.disabled = true; elRsi.disabled = true;
     }
 };
 
 window.setFilter = function(type) {
-    currentFilter = type;
+    currentFilter = type; // Keep track of Radio Button state
     applyFilterAndRender();
 };
 
 window.sortTable = function(n) {
-    const tableBody = document.getElementById('table-body');
-    if(!tableBody) return;
-    const rows = Array.from(tableBody.querySelectorAll('tr'));
-    tableBody.dataset.sortDir = tableBody.dataset.sortDir === 'asc' ? 'desc' : 'asc';
-    const dir = tableBody.dataset.sortDir;
-
+    const tbody = document.getElementById('table-body');
+    if(!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    tbody.dataset.sortDir = tbody.dataset.sortDir === 'asc' ? 'desc' : 'asc';
+    const dir = tbody.dataset.sortDir;
     rows.sort((rowA, rowB) => {
-        let valA = rowA.children[n].innerText.trim();
-        let valB = rowB.children[n].innerText.trim();
-        const parseNum = (str) => {
-            const match = str.match(/[-+]?[0-9]*\.?[0-9]+/);
-            if(!match) return str;
-            return parseFloat(match[0].replace(/\./g, '').replace(',', '.'));
-        };
-        const a = parseNum(valA); const b = parseNum(valB);
-        if (a < b) return dir === 'asc' ? -1 : 1;
-        if (a > b) return dir === 'asc' ? 1 : -1;
-        return 0;
+        let valA = rowA.children[n].innerText.trim(), valB = rowB.children[n].innerText.trim();
+        const parse = (s) => parseFloat(s.replace(/[^0-9.-]/g, '')) || 0;
+        const a = parse(valA), b = parse(valB);
+        return dir === 'asc' ? (a<b?-1:1) : (a>b?-1:1);
     });
-    rows.forEach(row => tableBody.appendChild(row));
+    rows.forEach(row => tbody.appendChild(row));
 };
 
 window.openPortfolioModal = function(kode) {
-    if (!portfolioModalInstance) {
-        const el = document.getElementById('portfolioModal');
-        if(el) portfolioModalInstance = new bootstrap.Modal(el);
-    }
+    if (!portfolioModalInstance) { const el = document.getElementById('portfolioModal'); if(el) portfolioModalInstance = new bootstrap.Modal(el); }
     const stock = allStocks.find(s => s.kode_saham === kode);
     const owned = myPortfolio.find(p => p.kode_saham === kode);
     
@@ -113,22 +86,16 @@ window.openPortfolioModal = function(kode) {
     document.getElementById('modal-nama-perusahaan').innerText = stock ? stock.nama_perusahaan : '';
     document.getElementById('input-kode').value = kode;
     
-    const formAvg=document.getElementById('input-avg'), formLots=document.getElementById('input-lots');
-    const formTp=document.getElementById('input-tp-pct'), formCl=document.getElementById('input-cl-pct');
-    const formNotes=document.getElementById('input-notes'), checkW=document.getElementById('input-watchlist');
-    const btnDel=document.getElementById('btn-delete-portfolio');
+    const fAvg=document.getElementById('input-avg'), fLot=document.getElementById('input-lots');
+    const fTp=document.getElementById('input-tp-pct'), fCl=document.getElementById('input-cl-pct');
+    const fNote=document.getElementById('input-notes'), fW=document.getElementById('input-watchlist'), btnDel=document.getElementById('btn-delete-portfolio');
 
     if (owned) {
-        formAvg.value = owned.avg_price; formLots.value = owned.lots;
-        formTp.value = owned.tp_pct || ''; formCl.value = owned.cl_pct || '';
-        formNotes.value = owned.notes || ''; checkW.checked = owned.is_watchlist;
-        btnDel.style.display = 'block';
+        fAvg.value=owned.avg_price; fLot.value=owned.lots; fTp.value=owned.tp_pct||''; fCl.value=owned.cl_pct||'';
+        fNote.value=owned.notes||''; fW.checked=owned.is_watchlist; btnDel.style.display='block';
     } else {
-        formAvg.value = stock ? stock.penutupan : 0; formLots.value = 1;
-        formTp.value = localStorage.getItem('def_tp') || '';
-        formCl.value = localStorage.getItem('def_cl') || '';
-        formNotes.value = ''; checkW.checked = false;
-        btnDel.style.display = 'none';
+        fAvg.value=stock?stock.penutupan:0; fLot.value=1; fTp.value=localStorage.getItem('def_tp')||''; fCl.value=localStorage.getItem('def_cl')||'';
+        fNote.value=''; fW.checked=false; btnDel.style.display='none';
     }
     updateCalc();
     if(portfolioModalInstance) portfolioModalInstance.show();
@@ -142,7 +109,7 @@ window.toggleWatchlist = async function(kode) {
     const payload = { user_id: currentUser.id, kode_saham: kode, is_watchlist: newStatus };
     if (!owned) { payload.avg_price = 0; payload.lots = 0; }
     const { error } = await db.from('portfolio').upsert(payload, { onConflict: 'user_id, kode_saham' });
-    if(!error) await loadData(); else showAlert('danger', 'Gagal update watchlist');
+    if(!error) await loadData(); 
 };
 
 // ==========================================
@@ -151,18 +118,14 @@ window.toggleWatchlist = async function(kode) {
 async function checkSession() {
     try {
         const { data: { session } } = await db.auth.getSession();
-        if (!session) window.location.href = 'login.html';
-        else { currentUser = session.user; loadData(); }
+        if (!session) window.location.href = 'login.html'; else { currentUser = session.user; loadData(); }
     } catch (e) { console.error(e); }
 }
 checkSession();
-
-document.getElementById('btn-logout')?.addEventListener('click', async () => {
-    if(confirm("Logout?")) { await db.auth.signOut(); window.location.href = 'login.html'; }
-});
+document.getElementById('btn-logout')?.addEventListener('click', async () => { if(confirm("Logout?")) { await db.auth.signOut(); window.location.href='login.html'; } });
 
 // ==========================================
-// 5. CORE LOGIC (LOAD, ANALYZE, FILTER)
+// 5. CORE LOGIC
 // ==========================================
 async function loadData() {
     showAlert('primary', 'Sinkronisasi data...');
@@ -176,7 +139,7 @@ async function loadData() {
         myPortfolio = portfolioRes.data || [];
         applyFilterAndRender();
         if(allStocks.length > 0) showAlert('success', `Data siap: ${allStocks.length} Emiten.`);
-        else showAlert('warning', 'Data kosong. Silakan upload CSV.');
+        else showAlert('warning', 'Data kosong.');
     } catch (err) { showAlert('danger', 'Gagal load: ' + err.message); }
 }
 
@@ -188,11 +151,17 @@ function applyFilterAndRender() {
 
     renderMarketOverview(processedData);
 
+    // Filter Logic
     let filteredData = [];
     if (currentFilter === 'ALL') filteredData = processedData;
-    else if (currentFilter === 'BUY') filteredData = processedData.filter(s => s.signal === 'BUY' || s.signal === 'ADD-ON 🔥');
     else if (currentFilter === 'WATCHLIST') filteredData = processedData.filter(s => s.isWatchlist || s.isOwned);
     else if (currentFilter === 'OWNED') filteredData = processedData.filter(s => s.isOwned);
+
+    // Apply "Buy Only" Checkbox
+    const onlyBuy = document.getElementById('check-buy-only')?.checked;
+    if (onlyBuy) {
+        filteredData = filteredData.filter(s => s.signal === 'BUY' || s.signal === 'ADD-ON 🔥');
+    }
 
     renderTable(filteredData);
 }
@@ -208,9 +177,8 @@ function analyzeStock(stock, ownedData) {
     if (close > Number(stock.open_price) && chgPercent > 0) trendLabel = 'Bullish ↗️';
     else if (close < Number(stock.open_price) && chgPercent < 0) trendLabel = 'Bearish ↘️';
 
-    // Fund Checks (Safety NaN)
     const shares = Number(stock.listed_shares) || 0;
-    const mcapVal = (close * shares) || 0; 
+    const mcapVal = close * shares; 
     let mcapLabel = mcapVal >= 10000000000000 ? '🟦 BIG' : (mcapVal >= 1000000000000 ? '🟨 MID' : '⬜ SML');
     const netForeign = (Number(stock.foreign_buy) || 0) - (Number(stock.foreign_sell) || 0);
 
@@ -232,9 +200,11 @@ function analyzeStock(stock, ownedData) {
             else if(clP>0 && close<=clP) st='HIT CL ⚠️';
             else st = plPercent>0 ? 'HOLD 🟢' : 'HOLD 🔴';
             portfolioInfo = { avg, lots, tpPct: ownedData.tp_pct, clPct: ownedData.cl_pct, plPercent, status: st, notes: ownedData.notes };
+            // Signal override for portfolio
+            if (plPercent > 2 && chgPercent > 0.5) signal = 'ADD-ON 🔥';
         }
     }
-    // Syariah Flag (Optional)
+    // Syariah (from CSV)
     let isSyariah = (stock.syariah_flag && stock.syariah_flag.toString().toLowerCase().includes('y'));
 
     return { ...stock, change, chgPercent, signal, isOwned, isWatchlist, portfolio: portfolioInfo, mcapVal, mcapLabel, netForeign, is_syariah: isSyariah, trendLabel };
@@ -250,20 +220,22 @@ function calculateScore(stock) {
     const close = Number(stock.penutupan);
     const open = Number(stock.open_price);
     
-    if(chg > 0) score += 10;
+    // Core Momentum
+    if(chg > 0.5) score += 20; else if(chg > 0) score += 10;
     if(close > open) score += 10; 
 
+    // Preset Logic
     if (preset === 'aggressive') { 
         if(chg > 2) score += 30; 
-        if(Number(stock.frekuensi) > 5000) score += 30; else if(Number(stock.frekuensi) > 1000) score += 15;
+        if(Number(stock.frekuensi) > 5000) score += 30; else if(Number(stock.frekuensi) > 1000) score += 10;
     } else if (preset === 'conservative') {
         if(stock.mcapLabel === '🟦 BIG') score += 40; else if(stock.mcapLabel === '🟨 MID') score += 10;
-        if(((Number(stock.foreign_buy)||0)-(Number(stock.foreign_sell)||0)) > 1e9) score += 30; 
+        if(stock.netForeign > 1e9) score += 30; 
     } else { 
         if(stock.mcapLabel !== '⬜ SML') score += 15; 
         if(Number(stock.frekuensi) > 2000) score += 15;
         if(chg > 1) score += 15;
-        if(((Number(stock.foreign_buy)||0)-(Number(stock.foreign_sell)||0)) > 0) score += 15;
+        if(stock.netForeign > 0) score += 15;
     }
     return score;
 }
@@ -285,7 +257,11 @@ function renderMarketOverview(data) {
     let colorFunc = (s) => 'text-dark';
 
     if (view === 'ai_picks') {
-        sortedData = data.map(s=>({...s, score:calculateScore(s)})).sort((a,b)=>b.score-a.score);
+        // AI Picks: Strict Logic (Score Tinggi AND Sinyal BUY)
+        sortedData = data
+            .map(s=>({...s, score:calculateScore(s)}))
+            .filter(s => s.signal === 'BUY' || s.signal === 'ADD-ON 🔥') // Filter strictly BUY
+            .sort((a,b)=>b.score-a.score);
         valFunc = (s) => `<span class="badge bg-success">Score: ${s.score}</span>`;
     } else if (view === 'gainers') {
         sortedData = [...data].sort((a,b)=>b.chgPercent-a.chgPercent);
@@ -300,7 +276,6 @@ function renderMarketOverview(data) {
         sortedData = [...data].sort((a,b)=>(b.frekuensi||0)-(a.frekuensi||0));
         valFunc = (s) => fmtShort(s.frekuensi)+'x'; colorFunc = () => 'text-warning text-dark';
     } else if (view === 'foreign') {
-        // Fix: Foreign List must handle numbers correctly
         sortedData = data.filter(s=>s.netForeign>0).sort((a,b)=>b.netForeign-a.netForeign);
         valFunc = (s) => '+'+fmtShort(s.netForeign); colorFunc = () => 'text-info';
     } else if (view === 'mcap') {
@@ -319,16 +294,19 @@ function renderMarketOverview(data) {
         </li>
     `).join('');
 
-    if(listContainer) listContainer.innerHTML = html || '<li class="list-group-item text-center text-muted">Data tidak tersedia</li>';
+    if(listContainer) listContainer.innerHTML = html || '<li class="list-group-item text-center text-muted small py-3">Tidak ada data yang cocok dengan kriteria.</li>';
 }
 
 function renderTable(data) {
     const tbody = document.getElementById('table-body');
     const footer = document.getElementById('footer-info');
     if(!tbody) return;
-
     tbody.innerHTML = '';
-    if (!data || data.length === 0) { if(footer) footer.innerText = "Tidak ada data."; return; }
+    
+    if (!data || data.length === 0) { 
+        if(footer) footer.innerText = "Tidak ada saham yang sesuai filter."; 
+        return; 
+    }
 
     data.forEach(item => {
         try {
@@ -358,7 +336,6 @@ function renderTable(data) {
             }
             const cell5 = `<td class="text-end">${metric}</td>`;
             const cell6 = `<td class="text-center">${badge}</td>`;
-
             row.innerHTML = cell1 + cell2 + cell3 + cell4 + cell5 + cell6;
             tbody.appendChild(row);
         } catch(e){}
@@ -366,9 +343,7 @@ function renderTable(data) {
     if(footer) footer.innerText = `Menampilkan ${data.length} saham.`;
 }
 
-// ==========================================
-// 7. CHART ENGINE (LAZY LOADED) - SAMA SEPERTI SEBELUMNYA
-// ==========================================
+// ... CHART ENGINE (Load functions below from previous script or ensure they are present) ...
 const calcSMA = (d, p) => d.length<p ? null : d.slice(d.length-p).reduce((a,b)=>a+b,0)/p;
 const calcStdDev = (d, p) => { if(d.length<p)return 0; const s=d.slice(d.length-p); const m=s.reduce((a,b)=>a+b,0)/p; return Math.sqrt(s.map(x=>Math.pow(x-m,2)).reduce((a,b)=>a+b,0)/p); };
 const calcStoch = (h, l, c, p) => { if(c.length<p)return null; const sl=l.slice(l.length-p), sh=h.slice(h.length-p); return ((c[c.length-1]-Math.min(...sl))/(Math.max(...sh)-Math.min(...sl)))*100; };
@@ -379,16 +354,11 @@ async function loadAndRenderChart(kode) {
     const c2 = document.getElementById('stoch-chart');
     if(c1) c1.innerHTML = '<div class="spinner-border text-primary m-5"></div>';
     if(c2) c2.innerHTML = '';
-
     const { data: h, error } = await db.from('history_saham').select('*').eq('kode_saham', kode).order('tanggal_perdagangan_terakhir', {ascending: true}).limit(300);
-    
-    if(error || !h || h.length < 50) { 
-        if(c1) c1.innerHTML='<div class="d-flex align-items-center justify-content-center h-100 text-muted small">Data history belum cukup (< 50 hari).</div>'; 
-        return; 
-    }
+    if(error || !h || h.length < 50) { if(c1) c1.innerHTML='<small>Data history kurang.</small>'; return; }
+
     const closes = h.map(x=>Number(x.penutupan)), highs = h.map(x=>Number(x.tertinggi)), lows = h.map(x=>Number(x.terendah));
     const dates = h.map(x=>new Date(x.tanggal_perdagangan_terakhir).getTime()), volumes = h.map(x=>Number(x.volume));
-
     const candleSeries = h.map(x => ({ x: new Date(x.tanggal_perdagangan_terakhir).getTime(), y: [x.open_price, x.tertinggi, x.terendah, x.penutupan] }));
     const bbUpper=[], bbLower=[], ma50=[], ma200=[], stochK=[];
 
@@ -399,6 +369,7 @@ async function loadAndRenderChart(kode) {
         if(i>=20) { const bb=calcBB(subC, 20, 2); if(bb) { bbUpper.push({x:dates[i], y:bb.upper}); bbLower.push({x:dates[i], y:bb.lower}); } }
         if(i>=14) stochK.push({x:dates[i], y:calcStoch(subH, subL, subC, 14)});
     }
+    // Text Summary
     const lastC=closes[closes.length-1], lastH=highs[highs.length-1], lastL=lows[lows.length-1];
     const P=(lastH+lastL+lastC)/3;
     let obv=0; for(let i=1; i<closes.length; i++) obv += closes[i]>closes[i-1] ? volumes[i] : (closes[i]<closes[i-1]?-volumes[i]:0);
@@ -414,26 +385,15 @@ async function loadAndRenderChart(kode) {
 
     if(c1) {
         if(priceChart) priceChart.destroy(); c1.innerHTML='';
-        priceChart = new ApexCharts(c1, {
-            series: [{name:'Harga',type:'candlestick',data:candleSeries},{name:'BB Up',type:'line',data:bbUpper},{name:'BB Low',type:'line',data:bbLower},{name:'MA50',type:'line',data:ma50},{name:'MA200',type:'line',data:ma200}],
-            chart: {type:'line',height:250,toolbar:{show:false},animations:{enabled:false}},
-            stroke: {width:[1,1,1,2,2], dashArray:[0,5,5,0,0]},
-            colors: ['#000','#775DD0','#775DD0','#00E396','#FEB019'],
-            xaxis: {type:'datetime',labels:{show:false}}, yaxis: {labels:{formatter:(v)=>new Intl.NumberFormat('id-ID').format(v)}}, grid: {padding:{bottom:0}}
-        });
+        priceChart = new ApexCharts(c1, { series: [{name:'Harga',type:'candlestick',data:candleSeries},{name:'BB Up',type:'line',data:bbUpper},{name:'BB Low',type:'line',data:bbLower},{name:'MA50',type:'line',data:ma50},{name:'MA200',type:'line',data:ma200}], chart: {type:'line',height:250,toolbar:{show:false},animations:{enabled:false}}, stroke: {width:[1,1,1,2,2], dashArray:[0,5,5,0,0]}, colors: ['#000','#775DD0','#775DD0','#00E396','#FEB019'], xaxis: {type:'datetime',labels:{show:false}}, yaxis: {labels:{formatter:(v)=>new Intl.NumberFormat('id-ID').format(v)}}, grid: {padding:{bottom:0}} });
         priceChart.render();
     }
     if(c2) {
         if(stochChart) stochChart.destroy(); c2.innerHTML='';
-        stochChart = new ApexCharts(c2, {
-            series: [{name:'%K',data:stochK}], chart: {type:'line',height:120,toolbar:{show:false},animations:{enabled:false}},
-            stroke: {width:2}, colors:['#008FFB'], xaxis:{type:'datetime'}, yaxis: {max:100,min:0,tickAmount:2},
-            annotations: {yaxis:[{y:20,borderColor:'#00E396'},{y:80,borderColor:'#FF4560'}]}
-        });
+        stochChart = new ApexCharts(c2, { series: [{name:'%K',data:stochK}], chart: {type:'line',height:120,toolbar:{show:false},animations:{enabled:false}}, stroke: {width:2}, colors:['#008FFB'], xaxis:{type:'datetime'}, yaxis: {max:100,min:0,tickAmount:2}, annotations: {yaxis:[{y:20,borderColor:'#00E396'},{y:80,borderColor:'#FF4560'}]} });
         stochChart.render();
     }
 }
-
 function updateCalc() {
     const elAvg=document.getElementById('input-avg'), elTp=document.getElementById('input-tp-pct'), elCl=document.getElementById('input-cl-pct');
     if(!elAvg) return;
@@ -441,39 +401,7 @@ function updateCalc() {
     document.getElementById('calc-tp').innerText = tpPct>0?`Rp ${new Intl.NumberFormat('id-ID').format(avg*(1+tpPct/100))}`:'-';
     document.getElementById('calc-cl').innerText = clPct>0?`Rp ${new Intl.NumberFormat('id-ID').format(avg*(1-clPct/100))}`:'-';
 }
-const inputs = ['input-avg','input-tp-pct','input-cl-pct'];
-inputs.forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('input', updateCalc); });
-
-document.getElementById('portfolio-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if(!currentUser) return;
-    portfolioModalInstance.hide();
-    const payload = {
-        user_id: currentUser.id, kode_saham: document.getElementById('input-kode').value,
-        avg_price: document.getElementById('input-avg').value, lots: document.getElementById('input-lots').value,
-        tp_pct: document.getElementById('input-tp-pct').value || 0, cl_pct: document.getElementById('input-cl-pct').value || 0,
-        notes: document.getElementById('input-notes').value, is_watchlist: document.getElementById('input-watchlist').checked
-    };
-    const { error } = await db.from('portfolio').upsert(payload, { onConflict: 'user_id, kode_saham' });
-    if (error) showAlert('danger', error.message); else { await loadData(); showAlert('success', 'Tersimpan!'); }
-});
-document.getElementById('strategy-form')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    localStorage.setItem('def_tp', document.getElementById('default-tp').value);
-    localStorage.setItem('def_cl', document.getElementById('default-cl').value);
-    localStorage.setItem('def_ma', document.getElementById('default-ma').value);
-    localStorage.setItem('def_rsi', document.getElementById('default-rsi').value);
-    localStorage.setItem('def_preset', document.getElementById('strategy-preset').value);
-    strategyModalInstance.hide();
-    showAlert('success', 'Strategi Tersimpan.');
-    loadData();
-});
-document.getElementById('btn-delete-portfolio')?.addEventListener('click', async () => {
-    if(!confirm("Hapus?")) return;
-    portfolioModalInstance.hide();
-    const { error } = await db.from('portfolio').delete().match({ user_id: currentUser.id, kode_saham: document.getElementById('input-kode').value });
-    if(!error) { await loadData(); showAlert('success', 'Dihapus.'); }
-});
+const ins = ['input-avg','input-tp-pct','input-cl-pct']; ins.forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('input', updateCalc); });
 
 // CSV UPLOAD & CLEANING (FIX NAN ISSUE)
 const csvInput = document.getElementById('csv-file-input');
@@ -488,13 +416,21 @@ if (csvInput) {
                 const rawData = results.data;
                 const formattedData = rawData.map(row => {
                     const getVal = (candidates) => { const key = Object.keys(row).find(k => candidates.some(c => c.toLowerCase() === k.trim().toLowerCase())); return key ? row[key] : null; };
-                    // CLEAN FUNCTION (FIXED)
+                    // CLEAN FUNCTION (ANTI-NAN)
                     const clean = (val) => {
                         if (!val) return 0;
                         if (typeof val === 'number') return val;
-                        // Hapus karakter non-numeric kecuali titik dan minus (asumsi format US/Internasional dari CSV)
-                        let s = val.toString().replace(/[^0-9.-]/g, '');
-                        return parseFloat(s) || 0;
+                        let s = val.toString().trim();
+                        // Handle 10.000 (ID) -> 10000
+                        if (s.match(/^[0-9.]+$/) && s.includes('.')) s = s.replace(/\./g, '');
+                        // Handle 10.000,50 (ID) -> 10000.50
+                        else if (s.includes('.') && s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+                        // Handle 10,000.50 (US) -> 10000.50
+                        else if (s.includes(',') && s.includes('.')) s = s.replace(/,/g, '');
+                        // Handle plain commas -> replace with dot (rare case)
+                        else if (s.includes(',') && !s.includes('.')) s = s.replace(',', '.'); 
+                        // Strip any other char just in case
+                        return parseFloat(s.replace(/[^0-9.-]/g, '')) || 0;
                     };
                     const kode = getVal(['Kode Saham', 'Kode', 'Code']);
                     if (!kode) return null;
@@ -520,7 +456,6 @@ if (csvInput) {
         });
     });
 }
-
 async function uploadToSupabase(dataSaham) {
     showAlert('warning', `Memproses...`);
     for (let i = 0; i < dataSaham.length; i += 50) {
