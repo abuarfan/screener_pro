@@ -378,6 +378,7 @@ window.sortTable = (n) => {
 // 9. CHART & MODAL LOGIC
 // ==========================================
 let portfolioModal; 
+let strategyModal;
 const STRATEGIES = {
     'conservative': { tp: 15, cl: 7, desc: "Cocok untuk Swing Trader. Target tinggi, toleransi risiko agak lebar." },
     'moderate':     { tp: 8,  cl: 4, desc: "Seimbang (Risk Reward 1:2). Cocok untuk day trading santai." },
