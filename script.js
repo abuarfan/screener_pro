@@ -160,83 +160,114 @@ function analyzeStock(stock, ownedData) {
 }
 
 // ==========================================
-// 5. RENDER TABEL (CLEAN UI)
+// 5. RENDER TABLE (SAFE VERSION)
 // ==========================================
 const tableBody = document.getElementById('table-body');
 const footerInfo = document.getElementById('footer-info');
 
-// ==========================================
-// UPDATE: RENDER TABEL (LEBIH BERSIH)
-// ==========================================
 function renderTable(data) {
+    // 1. Bersihkan tabel
     tableBody.innerHTML = '';
     
+    // 2. Cek jika data kosong
+    if (!data || data.length === 0) {
+        footerInfo.innerText = "Tidak ada data untuk ditampilkan.";
+        return;
+    }
+
+    // 3. Loop Data dengan Try-Catch agar satu error tidak mematikan seluruh tabel
     data.forEach(item => {
-        const row = document.createElement('tr');
-        row.className = 'clickable-row'; 
-        
-        const fmt = (n) => new Intl.NumberFormat('id-ID').format(n);
-        const fmtDec = (n) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(n);
+        try {
+            const row = document.createElement('tr');
+            row.className = 'clickable-row'; 
+            
+            // Helper Formatter (Safe)
+            const fmt = (n) => new Intl.NumberFormat('id-ID').format(Number(n) || 0);
+            const fmtDec = (n) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(Number(n) || 0);
 
-        let metricHtml = '';
-        let badgeHtml = '';
+            let metricHtml = '';
+            let badgeHtml = '';
 
-        // --- KOLOM KODE & WATCHLIST (CLEAN) ---
-        // Nama Perusahaan DIHAPUS dari sini
-        const starClass = item.isWatchlist ? 'text-warning' : 'text-muted';
-        const starIcon = item.isWatchlist ? '★' : '☆';
-        
-        const kodeHtml = `
-            <div class="d-flex align-items-center">
-                <span class="${starClass} me-2 fs-5" style="cursor:pointer;" onclick="toggleWatchlist('${item.kode_saham}')" title="Watchlist">${starIcon}</span>
-                <span class="fw-bold kode-saham-btn text-primary" onclick="openPortfolioModal('${item.kode_saham}')">${item.kode_saham}</span>
-            </div>
-        `;
+            // --- A. KOLOM KODE & WATCHLIST ---
+            const isWatchlist = item.isWatchlist || false;
+            const starClass = isWatchlist ? 'text-warning' : 'text-secondary';
+            const starIcon = isWatchlist ? '★' : '☆';
+            
+            // SAFE CHECK: Pastikan nama perusahaan ada, kalau null ganti string kosong
+            const namaPerusahaan = (item.nama_perusahaan || '').toString();
+            const namaPendek = namaPerusahaan.length > 20 ? namaPerusahaan.substring(0, 20) + '...' : namaPerusahaan;
 
-        // --- KOLOM METRIK (P/L atau CHG) ---
-        if (currentFilter === 'OWNED' && item.isOwned) {
-            const pl = item.portfolio.plPercent;
-            const color = pl >= 0 ? 'text-success' : 'text-danger';
-            metricHtml = `
-                <div class="${color} fw-bold">${pl >= 0 ? '+' : ''}${fmtDec(pl)}%</div>
-                <small class="text-muted" style="font-size:10px">TP:${item.portfolio.tpPct}% CL:${item.portfolio.clPct}%</small>
+            const kodeHtml = `
+                <div class="d-flex align-items-center">
+                    <span class="${starClass} star-btn me-2" onclick="toggleWatchlist('${item.kode_saham}')" title="Watchlist">${starIcon}</span>
+                    <div>
+                        <span class="fw-bold kode-saham-btn" onclick="openPortfolioModal('${item.kode_saham}')">${item.kode_saham}</span>
+                        <br><small class="text-muted" style="font-size:10px;">${namaPendek}</small>
+                    </div>
+                </div>
             `;
-            
-            // Status Portfolio Badge
-            let sColor = 'bg-secondary';
-            if (item.portfolio.status.includes('TP')) sColor = 'bg-warning text-dark';
-            if (item.portfolio.status.includes('CL')) sColor = 'bg-dark text-white';
-            if (item.portfolio.status.includes('HOLD 🟢')) sColor = 'bg-success';
-            if (item.portfolio.status.includes('HOLD 🔴')) sColor = 'bg-danger';
-            
-            badgeHtml = `<span class="badge ${sColor}">${item.portfolio.status}</span>`;
-            
-            if (item.signal === 'ADD-ON 🔥') {
-                badgeHtml += `<br><span class="badge bg-primary mt-1" style="font-size:9px">ADD-ON 🔥</span>`;
+
+            // --- B. KOLOM METRIK & STATUS ---
+            // Cek apakah item ini Owned DAN object portfolio-nya benar-benar ada
+            if (currentFilter === 'OWNED' && item.isOwned && item.portfolio) {
+                // VIEW PORTOFOLIO
+                const pl = Number(item.portfolio.plPercent) || 0;
+                const tpPct = item.portfolio.tpPct || 0;
+                const clPct = item.portfolio.clPct || 0;
+                const status = item.portfolio.status || 'HOLD';
+                
+                const color = pl >= 0 ? 'text-success' : 'text-danger';
+                metricHtml = `
+                    <div class="${color} fw-bold">${pl >= 0 ? '+' : ''}${fmtDec(pl)}%</div>
+                    <small class="text-muted" style="font-size:10px">TP:${tpPct}% CL:${clPct}%</small>
+                `;
+                
+                let sColor = 'bg-secondary';
+                if (status.includes('TP')) sColor = 'bg-warning text-dark';
+                else if (status.includes('CL')) sColor = 'bg-dark text-white';
+                else if (status.includes('HOLD 🟢')) sColor = 'bg-success';
+                else if (status.includes('HOLD 🔴')) sColor = 'bg-danger';
+                
+                badgeHtml = `<span class="badge ${sColor}">${status}</span>`;
+                
+                // Cek Sinyal Add-on
+                if (item.signal === 'ADD-ON 🔥') {
+                    badgeHtml += `<br><span class="badge bg-primary mt-1" style="font-size:9px">ADD-ON 🔥</span>`;
+                }
+
+            } else {
+                // VIEW MARKET (Default)
+                const change = Number(item.change) || 0;
+                const chgPercent = Number(item.chgPercent) || 0;
+                const color = change >= 0 ? 'text-success' : 'text-danger';
+                
+                metricHtml = `<div class="${color} fw-bold">${change > 0 ? '+' : ''}${fmtDec(chgPercent)}%</div>`;
+                
+                const signal = item.signal || 'WAIT';
+                if(signal === 'BUY') badgeHtml = `<span class="badge bg-success">BUY</span>`;
+                else if(signal === 'SELL') badgeHtml = `<span class="badge bg-danger">SELL</span>`;
+                else if(signal === 'RE-ENTRY?') badgeHtml = `<span class="badge bg-info text-dark">RE-ENTRY?</span>`;
+                else badgeHtml = `<span class="badge bg-light text-secondary border">WAIT</span>`;
             }
 
-        } else {
-            const color = item.change >= 0 ? 'text-success' : 'text-danger';
-            metricHtml = `<div class="${color} fw-bold">${item.change > 0 ? '+' : ''}${fmtDec(item.chgPercent)}%</div>`;
-            
-            if(item.signal === 'BUY') badgeHtml = `<span class="badge bg-success">BUY</span>`;
-            else if(item.signal === 'SELL') badgeHtml = `<span class="badge bg-danger">SELL</span>`;
-            else badgeHtml = `<span class="badge bg-light text-secondary border">WAIT</span>`;
-        }
+            // --- C. ISI ROW ---
+            row.innerHTML = `
+                <td>${kodeHtml}</td>
+                <td>${fmt(item.penutupan)}</td>
+                <td class="text-end">${metricHtml}</td>
+                <td class="text-center">${badgeHtml}</td>
+                <td class="text-end small">${fmt(item.volume)}</td>
+            `;
+            tableBody.appendChild(row);
 
-        row.innerHTML = `
-            <td>${kodeHtml}</td>
-            <td>${fmt(item.penutupan)}</td>
-            <td class="text-end">${metricHtml}</td>
-            <td class="text-center">${badgeHtml}</td>
-            <td class="text-end small">${fmt(item.volume)}</td>
-        `;
-        tableBody.appendChild(row);
+        } catch (err) {
+            console.error("Error merender baris:", item, err);
+            // Skip baris yang error, lanjut ke baris berikutnya
+        }
     });
 
     footerInfo.innerText = `Menampilkan ${data.length} saham.`;
 }
-
 // ==========================================
 // UPDATE: MODAL LOGIC (TAMPILKAN NAMA PERUSAHAAN)
 // ==========================================
