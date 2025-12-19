@@ -345,6 +345,7 @@ window.openPortfolioModal = (kode) => {
         if(btnDelete) btnDelete.style.display = 'none';
     }
     updateCalc(); // Hitung ulang Rupiahnya
+    loadAndRenderChart(kode); // Load chart setiap modal dibuka
     portfolioModal.show();
 };
 // Toggle Bintang
@@ -541,4 +542,86 @@ function showAlert(type, msg) {
         alertBox.innerHTML = msg;
         alertBox.classList.remove('d-none');
     }
+}
+
+// ==========================================
+// 9. CHARTING ENGINE (APEXCHARTS)
+// ==========================================
+let priceChart = null; // Variabel global untuk instance chart
+
+async function loadAndRenderChart(kode) {
+    const chartContainer = document.getElementById('price-chart');
+    chartContainer.innerHTML = '<div class="spinner-border text-primary" role="status"></div>'; // Loading spinner
+
+    // 1. Ambil Data History dari Supabase
+    // Kita ambil 60 hari terakhir biar chart tidak terlalu berat
+    const { data: history, error } = await db
+        .from('history_saham')
+        .select('tanggal_perdagangan_terakhir, open_price, tertinggi, terendah, penutupan')
+        .eq('kode_saham', kode)
+        .order('tanggal_perdagangan_terakhir', { ascending: true })
+        .limit(60); 
+
+    if (error || !history || history.length === 0) {
+        chartContainer.innerHTML = '<small class="text-muted">Belum ada data history chart.</small>';
+        return;
+    }
+
+    // 2. Format Data untuk ApexCharts (Candlestick format)
+    // Format: { x: Tanggal, y: [Open, High, Low, Close] }
+    const seriesData = history.map(item => {
+        return {
+            x: new Date(item.tanggal_perdagangan_terakhir).getTime(), // Timestamp
+            y: [item.open_price, item.tertinggi, item.terendah, item.penutupan]
+        };
+    });
+
+    // 3. Konfigurasi Chart
+    const options = {
+        series: [{
+            data: seriesData
+        }],
+        chart: {
+            type: 'candlestick',
+            height: 280,
+            toolbar: { show: false }, // Hilangkan menu download biar bersih
+            fontFamily: 'sans-serif'
+        },
+        title: {
+            text: `Pergerakan Harga ${kode}`,
+            align: 'left',
+            style: { fontSize: '12px' }
+        },
+        xaxis: {
+            type: 'datetime',
+            tooltip: { enabled: true }
+        },
+        yaxis: {
+            tooltip: { enabled: true },
+            labels: {
+                formatter: (value) => { return new Intl.NumberFormat('id-ID').format(value); }
+            }
+        },
+        plotOptions: {
+            candlestick: {
+                colors: {
+                    upward: '#198754',   // Hijau Bootstrap (Success)
+                    downward: '#dc3545'  // Merah Bootstrap (Danger)
+                }
+            }
+        },
+        grid: {
+            borderColor: '#f1f1f1',
+        }
+    };
+
+    // 4. Render Chart
+    // Jika chart sudah ada sebelumnya, hancurkan dulu (biar gak numpuk)
+    if (priceChart) {
+        priceChart.destroy();
+    }
+    
+    chartContainer.innerHTML = ''; // Bersihkan loading
+    priceChart = new ApexCharts(chartContainer, options);
+    priceChart.render();
 }
