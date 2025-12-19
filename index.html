@@ -104,6 +104,11 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div id="chart-area" class="mb-3 border rounded p-2 bg-white" style="height: 300px;">
+                        <div id="price-chart" class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
+                            <small>Memuat Chart...</small>
+                        </div>
+                    </div>
                     <form id="portfolio-form">
                         <input type="hidden" id="input-kode">
                         <div class="row mb-3">
@@ -179,6 +184,7 @@
         </div>
     </div>
     
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
