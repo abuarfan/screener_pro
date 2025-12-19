@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Screener Pro - Dashboard</title>
+    <title>Screener Pro - Ultimate</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <style>
@@ -12,33 +12,18 @@
         .kode-saham-btn:hover { text-decoration: underline; font-weight: 800; }
         .star-btn { cursor: pointer; font-size: 1.2rem; transition: transform 0.2s; }
         .star-btn:hover { transform: scale(1.2); }
-        
-        @keyframes highlightRow {
-            0% { background-color: #ffeeba; }
-            100% { background-color: transparent; }
-        }
+        @keyframes highlightRow { 0% { background-color: #ffeeba; } 100% { background-color: transparent; } }
         .highlight-search { animation: highlightRow 2s ease-out; }
-
-        #search-results {
-            max-height: 200px; overflow-y: auto; position: absolute; width: 100%; z-index: 1060;
-        }
-
-        /* STICKY COMPONENTS */
-        .sticky-controls {
-            position: sticky; top: 80px; z-index: 1040; background-color: #f8f9fa; padding-top: 10px; padding-bottom: 5px;
-        }
-        .table th:first-child {
-            position: sticky; left: 0; z-index: 20; background-color: #f8f9fa !important; border-right: 2px solid #dee2e6;
-        }
-        .table td:first-child {
-            position: sticky; left: 0; z-index: 10; background-color: #fff !important; border-right: 2px solid #dee2e6;
-        }
+        #search-results { max-height: 200px; overflow-y: auto; position: absolute; width: 100%; z-index: 1060; }
+        
+        /* Sticky Elements */
+        .sticky-controls { position: sticky; top: 80px; z-index: 1040; background-color: #f8f9fa; padding-top: 10px; padding-bottom: 5px; }
+        .table th:first-child { position: sticky; left: 0; z-index: 20; background-color: #f8f9fa !important; border-right: 2px solid #dee2e6; }
+        .table td:first-child { position: sticky; left: 0; z-index: 10; background-color: #fff !important; border-right: 2px solid #dee2e6; }
         .table-hover tbody tr:hover td:first-child { background-color: #e9ecef !important; }
 
-        /* NAVBAR LINK */
-        .nav-link-custom {
-            color: #d1d1d1; text-decoration: none; font-weight: 600; font-size: 0.8rem; letter-spacing: 1px; transition: color 0.2s; cursor: pointer;
-        }
+        /* Nav Links */
+        .nav-link-custom { color: #d1d1d1; text-decoration: none; font-weight: 600; font-size: 0.8rem; letter-spacing: 1px; transition: color 0.2s; cursor: pointer; }
         .nav-link-custom:hover { color: #ffc107; text-decoration: none; }
         .nav-separator { color: #6c757d; font-size: 0.8rem; margin: 0 5px; }
     </style>
@@ -48,7 +33,7 @@
     <nav class="navbar navbar-dark bg-dark shadow-sm sticky-top py-2">
         <div class="container d-flex flex-column align-items-center">
             <a class="navbar-brand fw-bold text-warning m-0 p-0" href="#" style="font-size: 1.3rem;">
-                SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 9px; vertical-align: middle;">BETA</span>
+                SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 9px; vertical-align: middle;">ULTIMATE</span>
             </a>
             <div class="mt-1 d-flex align-items-center">
                 <a class="nav-link-custom" onclick="openStrategyModal()">STRATEGY</a>
@@ -69,37 +54,28 @@
             <div class="col-md-4">
                 <div class="card shadow-sm h-100 border-success">
                     <div class="card-header bg-success text-white py-1 fw-bold small d-flex justify-content-between align-items-center">
-                        <span>🚀 Top Gainers</span>
-                        <span class="badge bg-white text-success" style="font-size:0.7em">Top 20</span>
+                        <span>🚀 Top Gainers</span><span class="badge bg-white text-success" style="font-size:0.7em">Top 20</span>
                     </div>
                     <ul class="list-group list-group-flush small" id="list-gainers"></ul>
-                    <div class="card-footer p-1 text-center bg-white">
-                        <a href="#" class="text-decoration-none small fw-bold text-success" onclick="toggleExpand('list-gainers-hidden', this)">Lihat Lainnya ⌄</a>
-                    </div>
+                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="text-decoration-none small fw-bold text-success" onclick="toggleExpand('list-gainers-hidden', this)">Lihat Lainnya ⌄</a></div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="card shadow-sm h-100 border-danger">
                     <div class="card-header bg-danger text-white py-1 fw-bold small d-flex justify-content-between align-items-center">
-                        <span>🔻 Top Losers</span>
-                        <span class="badge bg-white text-danger" style="font-size:0.7em">Top 20</span>
+                        <span>🔻 Top Losers</span><span class="badge bg-white text-danger" style="font-size:0.7em">Top 20</span>
                     </div>
                     <ul class="list-group list-group-flush small" id="list-losers"></ul>
-                    <div class="card-footer p-1 text-center bg-white">
-                        <a href="#" class="text-decoration-none small fw-bold text-danger" onclick="toggleExpand('list-losers-hidden', this)">Lihat Lainnya ⌄</a>
-                    </div>
+                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="text-decoration-none small fw-bold text-danger" onclick="toggleExpand('list-losers-hidden', this)">Lihat Lainnya ⌄</a></div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="card shadow-sm h-100 border-primary">
                     <div class="card-header bg-primary text-white py-1 fw-bold small d-flex justify-content-between align-items-center">
-                        <span>🔊 Top Volume</span>
-                        <span class="badge bg-white text-primary" style="font-size:0.7em">Top 20</span>
+                        <span>🔊 Top Volume</span><span class="badge bg-white text-primary" style="font-size:0.7em">Top 20</span>
                     </div>
                     <ul class="list-group list-group-flush small" id="list-volume"></ul>
-                    <div class="card-footer p-1 text-center bg-white">
-                        <a href="#" class="text-decoration-none small fw-bold text-primary" onclick="toggleExpand('list-volume-hidden', this)">Lihat Lainnya ⌄</a>
-                    </div>
+                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="text-decoration-none small fw-bold text-primary" onclick="toggleExpand('list-volume-hidden', this)">Lihat Lainnya ⌄</a></div>
                 </div>
             </div>
         </div>
@@ -108,37 +84,28 @@
             <div class="col-md-4">
                 <div class="card shadow-sm h-100 border-dark">
                     <div class="card-header bg-dark text-white py-1 fw-bold small d-flex justify-content-between align-items-center">
-                        <span>🏦 Big Market Cap</span>
-                        <span class="badge bg-secondary text-white border" style="font-size:0.7em">Top 20</span>
+                        <span>🏦 Big Market Cap</span><span class="badge bg-secondary text-white border" style="font-size:0.7em">Top 20</span>
                     </div>
                     <ul class="list-group list-group-flush small" id="list-mcap"></ul>
-                    <div class="card-footer p-1 text-center bg-white">
-                        <a href="#" class="text-decoration-none small fw-bold text-dark" onclick="toggleExpand('list-mcap-hidden', this)">Lihat Lainnya ⌄</a>
-                    </div>
+                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="text-decoration-none small fw-bold text-dark" onclick="toggleExpand('list-mcap-hidden', this)">Lihat Lainnya ⌄</a></div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="card shadow-sm h-100 border-info">
                     <div class="card-header bg-info text-dark py-1 fw-bold small d-flex justify-content-between align-items-center">
-                        <span>💰 Foreign Accumulation</span>
-                        <span class="badge bg-white text-info" style="font-size:0.7em">Top 20</span>
+                        <span>💰 Foreign Accum</span><span class="badge bg-white text-info" style="font-size:0.7em">Top 20</span>
                     </div>
                     <ul class="list-group list-group-flush small" id="list-foreign"></ul>
-                    <div class="card-footer p-1 text-center bg-white">
-                        <a href="#" class="text-decoration-none small fw-bold text-info" onclick="toggleExpand('list-foreign-hidden', this)">Lihat Lainnya ⌄</a>
-                    </div>
+                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="text-decoration-none small fw-bold text-info" onclick="toggleExpand('list-foreign-hidden', this)">Lihat Lainnya ⌄</a></div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="card shadow-sm h-100 border-warning">
                     <div class="card-header bg-warning text-dark py-1 fw-bold small d-flex justify-content-between align-items-center">
-                        <span>⚡ Top Frequency</span>
-                        <span class="badge bg-white text-dark" style="font-size:0.7em">Top 20</span>
+                        <span>⚡ Top Frequency</span><span class="badge bg-white text-dark" style="font-size:0.7em">Top 20</span>
                     </div>
                     <ul class="list-group list-group-flush small" id="list-freq"></ul>
-                    <div class="card-footer p-1 text-center bg-white">
-                        <a href="#" class="text-decoration-none small fw-bold text-dark" onclick="toggleExpand('list-freq-hidden', this)">Lihat Lainnya ⌄</a>
-                    </div>
+                    <div class="card-footer p-1 text-center bg-white"><a href="#" class="text-decoration-none small fw-bold text-dark" onclick="toggleExpand('list-freq-hidden', this)">Lihat Lainnya ⌄</a></div>
                 </div>
             </div>
         </div>
@@ -158,12 +125,12 @@
                             <div class="btn-group w-100 h-100 shadow-sm" role="group">
                                 <input type="radio" class="btn-check" name="btnradio" id="filter-all" autocomplete="off" checked onclick="setFilter('ALL')">
                                 <label class="btn btn-outline-secondary py-2 fw-semibold d-flex align-items-center justify-content-center" for="filter-all">Semua</label>
-                              
+                                <input type="radio" class="btn-check" name="btnradio" id="filter-syariah" autocomplete="off" onclick="setFilter('SYARIAH')">
+                                <label class="btn btn-outline-success py-2 fw-semibold d-flex align-items-center justify-content-center" for="filter-syariah">🕌 Syariah</label>
                                 <input type="radio" class="btn-check" name="btnradio" id="filter-watchlist" autocomplete="off" onclick="setFilter('WATCHLIST')">
                                 <label class="btn btn-outline-warning py-2 fw-semibold d-flex align-items-center justify-content-center" for="filter-watchlist">⭐ Watchlist</label>
-            
                                 <input type="radio" class="btn-check" name="btnradio" id="filter-owned" autocomplete="off" onclick="setFilter('OWNED')">
-                                <label class="btn btn-outline-primary py-2 fw-bold d-flex align-items-center justify-content-center" for="filter-owned">💼 Portofolio</label>
+                                <label class="btn btn-outline-primary py-2 fw-bold d-flex align-items-center justify-content-center" for="filter-owned">💼 Porto</label>
                             </div>
                         </div>
                     </div>
@@ -179,9 +146,10 @@
                             <tr>
                                 <th style="cursor:pointer; min-width: 100px;" onclick="sortTable(0)">Kode ⇅</th>
                                 <th style="cursor:pointer; min-width: 90px;" onclick="sortTable(1)">Close ⇅</th>
-                                <th style="cursor:pointer; min-width: 120px;" class="text-end" onclick="sortTable(2)">M.Cap / Asing ⇅</th> 
-                                <th style="cursor:pointer; min-width: 100px;" class="text-end" onclick="sortTable(3)">Chg% ⇅</th>
-                                <th style="cursor:pointer; min-width: 100px;" class="text-center" onclick="sortTable(4)">Sinyal ⇅</th>
+                                <th style="cursor:pointer; min-width: 100px;" class="text-end" onclick="sortTable(2)">Fund ⇅</th> 
+                                <th style="cursor:pointer; min-width: 100px;" class="text-center" onclick="sortTable(3)">Tren Harian ⇅</th>
+                                <th style="cursor:pointer; min-width: 100px;" class="text-end" onclick="sortTable(4)">Chg% ⇅</th>
+                                <th style="cursor:pointer; min-width: 100px;" class="text-center" onclick="sortTable(5)">Sinyal ⇅</th>
                             </tr>
                         </thead>
                         <tbody id="table-body"></tbody>
@@ -189,6 +157,29 @@
                 </div>
             </div>
             <div class="card-footer bg-white text-muted text-center py-2 small" id="footer-info">Menunggu data...</div>
+        </div>
+
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card shadow-sm border-warning">
+                    <div class="card-header bg-warning text-dark py-2 d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="fw-bold">🔥 Top Worth to Buy (AI Score)</span>
+                            <br><small style="font-size: 0.7em;">Gabungan: Tren + Asing + Likuiditas + Fundamental + Syariah</small>
+                        </div>
+                        <span class="badge bg-dark text-warning">Top Choice</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="row g-0" id="list-worth-buy-top"></div>
+                        <div id="list-worth-buy-hidden" class="d-none border-top bg-light">
+                            <ul class="list-group list-group-flush small" id="ul-worth-buy-hidden"></ul>
+                        </div>
+                    </div>
+                    <div class="card-footer p-1 text-center bg-white">
+                        <a href="#" class="text-decoration-none small fw-bold text-dark" onclick="toggleExpand('list-worth-buy-hidden', this)">Lihat Lainnya ⌄</a>
+                    </div>
+                </div>
+            </div>
         </div>
 
     </div> 
@@ -204,25 +195,48 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div id="chart-area" class="mb-2 border rounded p-1 bg-white" style="height: 300px;">
-                        <div id="price-chart" class="w-100 h-100 d-flex align-items-center justify-content-center text-muted"><small>Memuat Chart...</small></div>
-                    </div>
+                    
+                    <div id="price-chart" class="mb-1 border rounded p-1 bg-white" style="height: 250px;"></div>
+                    
+                    <div id="stoch-chart" class="mb-2 border rounded p-1 bg-white" style="height: 120px;"></div>
+
                     <div class="card bg-light border-0 mb-3">
                         <div class="card-body p-2">
-                            <h6 class="fw-bold small text-muted mb-2">🤖 AI Technical Summary</h6>
-                            <div class="row g-2" style="font-size: 0.8rem;">
-                                <div class="col-6"><span class="d-block text-secondary">Trend (MA):</span><span id="tech-trend" class="fw-bold">-</span></div>
-                                <div class="col-6"><span class="d-block text-secondary">RSI:</span><span id="tech-rsi" class="fw-bold">-</span></div>
-                                <div class="col-6"><span class="d-block text-secondary">Supp/Res:</span><span id="tech-sr" class="fw-bold">-</span></div>
-                                <div class="col-6"><span class="d-block text-secondary">MACD:</span><span id="tech-macd" class="fw-bold">-</span></div>
+                            <h6 class="fw-bold small text-muted mb-2">🤖 Advanced Technical Analysis</h6>
+                            <div class="row g-2" style="font-size: 0.75rem;">
+                                <div class="col-4 border-end">
+                                    <span class="d-block text-secondary">Pivot Points (P):</span>
+                                    <span id="tech-pivot" class="fw-bold">-</span>
+                                </div>
+                                <div class="col-4 border-end">
+                                    <span class="d-block text-secondary">Resistance (R1):</span>
+                                    <span id="tech-r1" class="fw-bold text-danger">-</span>
+                                </div>
+                                <div class="col-4">
+                                    <span class="d-block text-secondary">Support (S1):</span>
+                                    <span id="tech-s1" class="fw-bold text-success">-</span>
+                                </div>
+                                <div class="col-4 border-end border-top pt-1">
+                                    <span class="d-block text-secondary">OBV (Volume):</span>
+                                    <span id="tech-obv" class="fw-bold">-</span>
+                                </div>
+                                <div class="col-4 border-end border-top pt-1">
+                                    <span class="d-block text-secondary">Golden/Dead Cross:</span>
+                                    <span id="tech-cross" class="fw-bold">-</span>
+                                </div>
+                                <div class="col-4 border-top pt-1">
+                                    <span class="d-block text-secondary">Stochastic:</span>
+                                    <span id="tech-stoch" class="fw-bold">-</span>
+                                </div>
                             </div>
                         </div>
                     </div>
+
                     <form id="portfolio-form">
                         <input type="hidden" id="input-kode">
                         <div class="row mb-3">
                             <div class="col-6">
-                                <label class="form-label small text-muted">Harga Avg (Buy)</label>
+                                <label class="form-label small text-muted">Harga Avg</label>
                                 <input type="number" id="input-avg" class="form-control fw-bold" placeholder="0" required>
                             </div>
                             <div class="col-6">
@@ -230,39 +244,34 @@
                                 <input type="number" id="input-lots" class="form-control" value="1" required>
                             </div>
                         </div>
-                        <hr>
-                        <p class="mb-2 fw-bold text-primary small">🎯 TRADING PLAN (Satuan %)</p>
                         <div class="row mb-3">
                             <div class="col-6">
-                                <label class="form-label small text-muted">Target Profit (%)</label>
+                                <label class="form-label small text-muted">TP (%)</label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text bg-success text-white">+</span>
-                                    <input type="number" id="input-tp-pct" class="form-control border-success" placeholder="Misal: 10">
-                                    <span class="input-group-text">%</span>
+                                    <input type="number" id="input-tp-pct" class="form-control border-success">
                                 </div>
-                                <div class="form-text text-success small" id="calc-tp">Target: -</div>
+                                <div class="form-text text-success small" id="calc-tp">-</div>
                             </div>
                             <div class="col-6">
-                                <label class="form-label small text-muted">Cut Loss (%)</label>
+                                <label class="form-label small text-muted">CL (%)</label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text bg-danger text-white">-</span>
-                                    <input type="number" id="input-cl-pct" class="form-control border-danger" placeholder="Misal: 5">
-                                    <span class="input-group-text">%</span>
+                                    <input type="number" id="input-cl-pct" class="form-control border-danger">
                                 </div>
-                                <div class="form-text text-danger small" id="calc-cl">Stop: -</div>
+                                <div class="form-text text-danger small" id="calc-cl">-</div>
                             </div>
                         </div>
-                         <div class="mb-3 form-check">
+                        <div class="mb-3 form-check">
                             <input type="checkbox" class="form-check-input" id="input-watchlist">
-                            <label class="form-check-label small" for="input-watchlist">⭐ Masukkan ke Watchlist</label>
+                            <label class="form-check-label small" for="input-watchlist">⭐ Watchlist</label>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label small text-muted">Catatan / Alasan Beli</label>
-                            <textarea id="input-notes" class="form-control form-control-sm" rows="2" placeholder="Contoh: Akumulasi bandar, Breakout resistance..."></textarea>
+                            <textarea id="input-notes" class="form-control form-control-sm" rows="1" placeholder="Catatan..."></textarea>
                         </div>
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">💾 Simpan Plan</button>
-                            <button type="button" class="btn btn-outline-danger btn-sm" id="btn-delete-portfolio" style="display:none;">🗑️ Hapus dari Portofolio</button>
+                            <button type="submit" class="btn btn-primary">💾 Simpan</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" id="btn-delete-portfolio" style="display:none;">Hapus</button>
                         </div>
                     </form>
                 </div>
@@ -283,7 +292,7 @@
                             <label class="form-label small fw-bold">Pilih Profil Trading:</label>
                             <select id="strategy-preset" class="form-select" onchange="applyStrategyPreset()">
                                 <option value="custom">🛠️ Custom (Manual)</option>
-                                <option value="conservative">🐢 Konservatif (Swing/Invest)</option>
+                                <option value="conservative">🐢 Konservatif (Swing)</option>
                                 <option value="moderate">⚖️ Moderat (Day Trade)</option>
                                 <option value="aggressive">🚀 Agresif (Scalping)</option>
                             </select>
@@ -293,31 +302,16 @@
                         <div class="row g-2">
                             <div class="col-6">
                                 <h6 class="small fw-bold text-muted border-bottom pb-1">💰 Risk Management</h6>
-                                <div class="mb-2">
-                                    <label class="form-label small mb-0">Target Profit (%)</label>
-                                    <input type="number" id="default-tp" class="form-control form-control-sm" placeholder="0">
-                                </div>
-                                <div class="mb-2">
-                                    <label class="form-label small mb-0">Cut Loss (%)</label>
-                                    <input type="number" id="default-cl" class="form-control form-control-sm" placeholder="0">
-                                </div>
+                                <div class="mb-2"><label class="form-label small mb-0">TP (%)</label><input type="number" id="default-tp" class="form-control form-control-sm"></div>
+                                <div class="mb-2"><label class="form-label small mb-0">CL (%)</label><input type="number" id="default-cl" class="form-control form-control-sm"></div>
                             </div>
                             <div class="col-6">
                                 <h6 class="small fw-bold text-muted border-bottom pb-1">📈 Indikator Chart</h6>
-                                <div class="mb-2">
-                                    <label class="form-label small mb-0">MA Period</label>
-                                    <input type="number" id="default-ma" class="form-control form-control-sm" placeholder="Contoh: 20">
-                                </div>
-                                <div class="mb-2">
-                                    <label class="form-label small mb-0">RSI Period</label>
-                                    <input type="number" id="default-rsi" class="form-control form-control-sm" value="14">
-                                </div>
+                                <div class="mb-2"><label class="form-label small mb-0">MA Period</label><input type="number" id="default-ma" class="form-control form-control-sm"></div>
+                                <div class="mb-2"><label class="form-label small mb-0">RSI Period</label><input type="number" id="default-rsi" class="form-control form-control-sm"></div>
                             </div>
                         </div>
-                        <div class="alert alert-info py-2 mt-3 mb-0 small">
-                            <i class="me-1">ℹ️</i> Angka ini akan digunakan untuk <b>Auto-fill Portofolio</b> dan <b>Setting Grafik</b>.
-                        </div>
-                        <button type="submit" class="btn btn-warning w-100 mt-3">Simpan Konfigurasi</button>
+                        <button type="submit" class="btn btn-warning w-100 mt-3">Simpan</button>
                     </form>
                 </div>
             </div>
@@ -329,6 +323,5 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="script.js"></script>
-
 </body>
 </html>
