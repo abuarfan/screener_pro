@@ -8,7 +8,7 @@
     <style>
         body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f9; }
         .clickable-row:hover { background-color: #f1f3f5 !important; cursor: pointer; }
-        .kode-saham-btn { text-decoration: none; color: #0d6efd; font-weight: 700; }
+        .kode-saham-btn { text-decoration: none; color: #0d6efd; font-weight: 700; font-size: 1.1rem; }
         .kode-saham-btn:hover { text-decoration: underline; }
         .star-btn { cursor: pointer; font-size: 1.2rem; transition: transform 0.2s; }
         .star-btn:hover { transform: scale(1.2); color: #ffc107 !important; }
@@ -49,7 +49,7 @@
             <div class="col-12">
                 <div class="card shadow-sm border-0">
                     <div class="card-header bg-dark text-white py-2 d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center gap-2" style="max-width: 70%;">
+                        <div class="d-flex align-items-center gap-2" style="max-width: 80%;">
                             <span class="small text-white-50 d-none d-md-inline">Mode:</span>
                             <select id="market-view-select" class="form-select form-select-sm fw-bold bg-secondary text-white border-0" style="cursor:pointer;" onchange="window.triggerRender()">
                                 <option value="gainers" selected>🚀 Top Gainers</option>
@@ -60,6 +60,7 @@
                                 <option value="foreign">💰 Foreign Accumulation</option>
                                 <option value="mcap">🏦 Big Market Cap</option>
                             </select>
+                            <button class="btn btn-sm btn-outline-light border-0 py-0 px-2" onclick="window.triggerRender()" title="Refresh Data">↻</button>
                         </div>
                         <span class="badge bg-warning text-dark" id="view-badge">Top 10</span>
                     </div>
@@ -80,7 +81,7 @@
                         <div class="col-md-6 position-relative">
                             <div class="input-group"> 
                                 <span class="input-group-text bg-light border-end-0">🔍</span>
-                                <input type="text" id="input-search" class="form-control border-start-0" placeholder="Cari Kode / Nama..." autocomplete="off">
+                                <input type="text" id="input-search" class="form-control border-start-0" placeholder="Cari Kode Saham..." autocomplete="off">
                             </div>
                             <div id="search-results" class="list-group shadow d-none"></div>
                         </div>
