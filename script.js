@@ -19,37 +19,17 @@ const STRATEGIES = {
     'aggressive':   { tp: 3,  cl: 2, ma: 5,  rsi: 14, desc: "Scalping. Fokus: Volatilitas & Volume." }
 };
 
-// --- FUNGSI PEMBERSIH ANGKA (JANTUNG PERBAIKAN) ---
-// Mengubah segala jenis format (10.000 / 10,000 / 10.000,00) menjadi Angka Murni Javascript
+// --- PEMBERSIH ANGKA (ANTI NAN) ---
 const parseNumber = (val) => {
     if (!val) return 0;
-    if (typeof val === 'number') return val; // Sudah angka
-    
+    if (typeof val === 'number') return val;
     let s = val.toString().trim();
     if (s === '-' || s === '') return 0;
-
-    // Deteksi format Indonesia (ada titik sebagai ribuan, koma sebagai desimal)
-    // Contoh: 10.000 atau 10.000,50
-    if (s.includes('.') && s.includes(',')) {
-        s = s.replace(/\./g, '').replace(',', '.'); // Hapus titik, ganti koma jadi titik
-    } 
-    // Deteksi format Indonesia Bulat (10.000) -> Cek jika titik ada di posisi ribuan
-    else if (s.includes('.') && !s.includes(',')) {
-        // Asumsi ini ribuan jika polanya angka.angka
-        // Hati-hati: Javascript anggap 10.500 sebagai 10 koma 5. Kita harus paksa hapus titik.
-        // Kecuali jika angkanya kecil (< 100) mungkin itu desimal beneran? 
-        // Tapi di saham IDR, biasanya harga > 50. Jadi aman asumsi titik = ribuan.
-        s = s.replace(/\./g, ''); 
-    }
-    // Deteksi format US (10,000.00)
-    else if (s.includes(',') && s.includes('.')) {
-        s = s.replace(/,/g, '');
-    }
-    // Deteksi format US Bulat (10,000)
-    else if (s.includes(',')) {
-        s = s.replace(/,/g, '');
-    }
-
+    // Format ID (10.000,00) -> US (10000.00)
+    if (s.includes('.') && s.includes(',')) { s = s.replace(/\./g, '').replace(',', '.'); } 
+    else if (s.includes('.') && !s.includes(',')) { s = s.replace(/\./g, ''); }
+    else if (s.includes(',') && s.includes('.')) { s = s.replace(/,/g, ''); }
+    else if (s.includes(',')) { s = s.replace(/,/g, ''); }
     const res = parseFloat(s);
     return isNaN(res) ? 0 : res;
 };
@@ -105,7 +85,6 @@ window.sortTable = function(n) {
     const dir = tbody.dataset.sortDir;
     rows.sort((rowA, rowB) => {
         let valA = rowA.children[n].innerText.trim(), valB = rowB.children[n].innerText.trim();
-        // Gunakan parseNumber untuk sorting juga
         const a = parseNumber(valA), b = parseNumber(valB);
         return dir === 'asc' ? (a<b?-1:1) : (a>b?-1:1);
     });
@@ -125,7 +104,6 @@ window.openPortfolioModal = function(kode) {
     const fTp=document.getElementById('input-tp-pct'), fCl=document.getElementById('input-cl-pct');
     const fNote=document.getElementById('input-notes'), fW=document.getElementById('input-watchlist'), btnDel=document.getElementById('btn-delete-portfolio');
 
-    // Logic: Form terisi hanya jika punya LOT
     if (owned && owned.lots > 0) {
         fAvg.value = owned.avg_price; fLot.value = owned.lots; 
         fTp.value = owned.tp_pct || ''; fCl.value = owned.cl_pct || '';
@@ -188,6 +166,7 @@ function applyFilterAndRender() {
         const owned = myPortfolio.find(p => p.kode_saham === stock.kode_saham);
         return analyzeStock(stock, owned);
     });
+    // KITA RENDER WIDGET DISINI
     renderMarketOverview(processedData);
 
     let filteredData = [];
@@ -199,22 +178,17 @@ function applyFilterAndRender() {
 }
 
 function analyzeStock(stock, ownedData) {
-    // 1. CLEAN PARSING (Anti NaN)
     const close = parseNumber(stock.penutupan);
     const prev = parseNumber(stock.sebelumnya) || close;
     const open = parseNumber(stock.open_price);
     
-    // 2. MATH
     const change = close - prev;
-    let chgPercent = 0;
-    if (prev !== 0) chgPercent = (change / prev) * 100;
+    let chgPercent = prev !== 0 ? (change / prev) * 100 : 0;
     
-    // 3. TREND
     let trendLabel = '-';
     if (close > open && chgPercent > 0) trendLabel = 'Bullish ↗️';
     else if (close < open && chgPercent < 0) trendLabel = 'Bearish ↘️';
 
-    // 4. FUNDAMENTAL
     const shares = parseNumber(stock.listed_shares);
     let mcapVal = close * shares; 
     let mcapLabel = mcapVal >= 10000000000000 ? '🟦 BIG' : (mcapVal >= 1000000000000 ? '🟨 MID' : '⬜ SML');
@@ -223,7 +197,6 @@ function analyzeStock(stock, ownedData) {
     const fSell = parseNumber(stock.foreign_sell);
     let netForeign = fBuy - fSell;
     
-    // 5. Volume & Freq
     const volume = parseNumber(stock.volume);
     const frekuensi = parseNumber(stock.frekuensi);
 
@@ -236,11 +209,9 @@ function analyzeStock(stock, ownedData) {
             isOwned = true;
             const avg = Number(ownedData.avg_price);
             const lots = Number(ownedData.lots);
-            
             const plVal = (close * lots * 100) - (avg * lots * 100);
-            let plPercent = 0;
-            if(avg > 0 && lots > 0) plPercent = (plVal / (avg * lots * 100)) * 100;
-
+            let plPercent = (avg > 0 && lots > 0) ? (plVal / (avg * lots * 100)) * 100 : 0;
+            
             let st = 'HOLD';
             const tpP = ownedData.tp_pct > 0 ? avg*(1+ownedData.tp_pct/100) : 0;
             const clP = ownedData.cl_pct > 0 ? avg*(1-ownedData.cl_pct/100) : 0;
@@ -253,21 +224,18 @@ function analyzeStock(stock, ownedData) {
     }
     let isSyariah = (stock.syariah_flag && stock.syariah_flag.toString().toLowerCase().includes('y'));
 
-    // RETURN CLEAN DATA
     return { 
-        ...stock, 
-        penutupan: close, volume, frekuensi, // Override raw data with clean numbers
+        ...stock, penutupan: close, volume, frekuensi, 
         change, chgPercent, signal, isOwned, isWatchlist, portfolio: portfolioInfo, mcapVal, mcapLabel, netForeign, is_syariah: isSyariah, trendLabel 
     };
 }
 
 // ==========================================
-// 6. RENDER UI
+// 6. RENDER UI (MARKET OVERVIEW WITH STRATEGY FILTER)
 // ==========================================
 function calculateScore(stock) {
     let score = 0;
     const preset = localStorage.getItem('def_preset') || 'moderate';
-    
     const chg = stock.chgPercent;
     const close = stock.penutupan;
     const open = parseNumber(stock.open_price);
@@ -278,31 +246,63 @@ function calculateScore(stock) {
     if(close > open) score += 10; 
 
     if (preset === 'aggressive') { 
-        if(chg > 2) score += 30; 
-        if(freq > 5000) score += 30; else if(freq > 1000) score += 10;
+        if(chg > 2) score += 30; if(freq > 5000) score += 30; else if(freq > 1000) score += 10;
     } else if (preset === 'conservative') {
         if(stock.mcapLabel === '🟦 BIG') score += 40; else if(stock.mcapLabel === '🟨 MID') score += 10;
         if(netF > 1e9) score += 30; 
     } else { 
-        if(stock.mcapLabel !== '⬜ SML') score += 15; 
-        if(freq > 2000) score += 15;
-        if(chg > 1) score += 15;
-        if(netF > 0) score += 15;
+        if(stock.mcapLabel !== '⬜ SML') score += 15; if(freq > 2000) score += 15;
+        if(chg > 1) score += 15; if(netF > 0) score += 15;
     }
     return score;
+}
+
+// --- FUNGSI FILTER STRATEGI (NEW!) ---
+function filterByStrategy(data) {
+    const strategy = localStorage.getItem('def_preset') || 'moderate';
+    
+    return data.filter(s => {
+        // Logika Filter sebelum ditampilkan di Top Picks/Gainers
+        if (strategy === 'conservative') {
+            // Hapus SML CAP dan Harga < 200 (Saham gorengan bahaya)
+            if (s.mcapLabel === '⬜ SML') return false;
+            if (s.penutupan < 200) return false;
+            return true;
+        } 
+        else if (strategy === 'moderate') {
+            // Hapus yang tidak likuid (Frekuensi < 500) & Harga < 50
+            if (s.frekuensi < 500) return false;
+            if (s.penutupan < 50) return false;
+            return true;
+        }
+        else if (strategy === 'aggressive') {
+            // Tampilkan hampir semua, asal ada transaksi
+            if (s.frekuensi < 50) return false; 
+            return true;
+        }
+        return true; // Custom = All
+    });
 }
 
 function renderMarketOverview(data) {
     const widgetArea = document.getElementById('market-overview-area');
     const listContainer = document.getElementById('market-list-container');
     const selectView = document.getElementById('market-view-select');
+    const badge = document.getElementById('view-badge');
     
     if (!data || data.length === 0) { if(widgetArea) widgetArea.style.display = 'none'; return; }
     if(widgetArea) widgetArea.style.display = 'block';
 
     const view = selectView ? selectView.value : 'gainers';
+    const strategyName = (localStorage.getItem('def_preset') || 'moderate').toUpperCase();
     
-    // FORMATTER
+    // UPDATE BADGE AGAR USER TAU FILTER APA YG AKTIF
+    if(badge) badge.innerText = `Top 10 (${strategyName})`;
+
+    // 1. TERAPKAN FILTER STRATEGI TERLEBIH DAHULU
+    let filteredData = filterByStrategy(data);
+
+    // 2. BARU DI SORTING SESUAI DROPDOWN
     const fmtDec = (n) => new Intl.NumberFormat('id-ID',{maximumFractionDigits:2}).format(n);
     const fmtShort = (n) => {
         if(Math.abs(n)>=1e12) return(n/1e12).toFixed(1)+' T'; 
@@ -314,30 +314,37 @@ function renderMarketOverview(data) {
     let valFunc = (s) => ''; 
     let colorFunc = (s) => 'text-dark';
 
-    // Safe Sort: Data sudah bersih dari analyzeStock, jadi aman sort langsung
+    const safeSort = (arr, key, desc=true) => {
+        return [...arr].sort((a,b) => {
+            const vA = Number(a[key]) || 0; const vB = Number(b[key]) || 0;
+            return desc ? vB - vA : vA - vB;
+        });
+    };
+
     if (view === 'gainers') {
-        sortedData = [...data].sort((a,b)=>b.chgPercent-a.chgPercent);
+        sortedData = safeSort(filteredData, 'chgPercent', true);
         valFunc = (s) => `+${fmtDec(s.chgPercent)}%`; colorFunc = () => 'text-success';
     } else if (view === 'losers') {
-        sortedData = [...data].sort((a,b)=>a.chgPercent-b.chgPercent);
+        sortedData = safeSort(filteredData, 'chgPercent', false);
         valFunc = (s) => `${fmtDec(s.chgPercent)}%`; colorFunc = () => 'text-danger';
     } else if (view === 'volume') {
-        sortedData = [...data].sort((a,b)=>b.volume-a.volume);
+        sortedData = safeSort(filteredData, 'volume', true);
         valFunc = (s) => fmtShort(s.volume);
     } else if (view === 'ai_picks') {
-        sortedData = data
+        // AI Picks punya scoring sendiri, tapi tetap pakai data yang sudah difilter strategi
+        sortedData = filteredData
             .map(s=>({...s, score:calculateScore(s)}))
             .filter(s => s.signal === 'BUY' || s.signal === 'ADD-ON 🔥')
-            .sort((a,b)=>b.score-a.score);
+            .sort((a,b)=>(b.score||0)-(a.score||0));
         valFunc = (s) => `<span class="badge bg-success">Score: ${s.score}</span>`;
     } else if (view === 'frequency') {
-        sortedData = [...data].sort((a,b)=>b.frekuensi-a.frekuensi);
+        sortedData = safeSort(filteredData, 'frekuensi', true);
         valFunc = (s) => fmtShort(s.frekuensi)+'x'; colorFunc = () => 'text-warning text-dark';
     } else if (view === 'foreign') {
-        sortedData = data.filter(s=>s.netForeign>0).sort((a,b)=>b.netForeign-a.netForeign);
+        sortedData = filteredData.filter(s=>s.netForeign>0).sort((a,b)=>(b.netForeign||0)-(a.netForeign||0));
         valFunc = (s) => '+'+fmtShort(s.netForeign); colorFunc = () => 'text-info';
     } else if (view === 'mcap') {
-        sortedData = [...data].sort((a,b)=>b.mcapVal-a.mcapVal);
+        sortedData = safeSort(filteredData, 'mcapVal', true);
         valFunc = (s) => fmtShort(s.mcapVal); colorFunc = () => 'text-primary';
     }
 
@@ -352,7 +359,7 @@ function renderMarketOverview(data) {
         </li>
     `).join('');
 
-    if(listContainer) listContainer.innerHTML = html || '<li class="list-group-item text-center text-muted small py-3">Tidak ada data.</li>';
+    if(listContainer) listContainer.innerHTML = html || '<li class="list-group-item text-center text-muted small py-3">Tidak ada data (Cek filter strategi).</li>';
 }
 
 function renderTable(data) {
@@ -371,8 +378,8 @@ function renderTable(data) {
             const row = document.createElement('tr'); row.className = 'clickable-row'; 
             row.id = `row-${item.kode_saham}`; 
             
-            const fmt = (n) => new Intl.NumberFormat('id-ID').format(n);
-            const fmtDec = (n) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(n);
+            const fmt = (n) => new Intl.NumberFormat('id-ID').format(Number(n)||0);
+            const fmtDec = (n) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(Number(n)||0);
             const fmtShort = (n) => { if(Math.abs(n)>=1e12)return(n/1e12).toFixed(1)+' T'; if(Math.abs(n)>=1e9)return(n/1e9).toFixed(1)+' M'; return fmt(n); };
 
             const star = item.isWatchlist ? '<span class="text-warning star-btn me-2">★</span>' : '<span class="text-secondary star-btn me-2">☆</span>';
@@ -401,7 +408,7 @@ function renderTable(data) {
     if(footer) footer.innerText = `Menampilkan ${data.length} saham.`;
 }
 
-// ... CHART ENGINE (Same as before) ...
+// ... CHART ENGINE (No Change) ...
 const calcSMA = (d, p) => d.length<p ? null : d.slice(d.length-p).reduce((a,b)=>a+b,0)/p;
 const calcStdDev = (d, p) => { if(d.length<p)return 0; const s=d.slice(d.length-p); const m=s.reduce((a,b)=>a+b,0)/p; return Math.sqrt(s.map(x=>Math.pow(x-m,2)).reduce((a,b)=>a+b,0)/p); };
 const calcStoch = (h, l, c, p) => { if(c.length<p)return null; const sl=l.slice(l.length-p), sh=h.slice(h.length-p); return ((c[c.length-1]-Math.min(...sl))/(Math.max(...sh)-Math.min(...sl)))*100; };
