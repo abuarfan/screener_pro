@@ -13,74 +13,81 @@
         .star-btn { cursor: pointer; font-size: 1.2rem; transition: transform 0.2s; }
         .star-btn:hover { transform: scale(1.2); }
         
-        /* Highlight Animasi saat pencarian */
         @keyframes highlightRow {
             0% { background-color: #ffeeba; }
             100% { background-color: transparent; }
         }
         .highlight-search { animation: highlightRow 2s ease-out; }
 
-        /* Dropdown Search Results */
         #search-results {
             max-height: 200px; overflow-y: auto; position: absolute; width: 100%; z-index: 1060;
         }
 
-        /* --- FITUR BARU: STICKY CONTROL PANEL (Filter) --- */
+        /* --- STICKY CONTROL PANEL (Updated Height) --- */
+        /* Karena Navbar sekarang 2 baris (lebih tinggi), top harus disesuaikan */
         .sticky-controls {
             position: sticky;
-            top: 56px; /* Tinggi Navbar (sesuaikan jika navbar berubah) */
-            z-index: 1040; /* Di atas tabel header, di bawah navbar/modal */
-            background-color: #f8f9fa; /* Warna background body agar tidak transparan */
+            top: 80px; /* Update: Disesuaikan dengan tinggi navbar baru */
+            z-index: 1040;
+            background-color: #f8f9fa;
             padding-top: 10px;
             padding-bottom: 5px;
         }
 
-        /* --- FITUR BARU: STICKY FIRST COLUMN (Kode Saham) --- */
-        /* Header Kolom Pertama */
+        /* --- STICKY FIRST COLUMN --- */
         .table th:first-child {
-            position: sticky;
-            left: 0;
-            z-index: 20; /* Lebih tinggi dari sel biasa */
-            background-color: #f8f9fa !important; /* Warna header */
-            border-right: 2px solid #dee2e6; /* Garis pemisah */
+            position: sticky; left: 0; z-index: 20; background-color: #f8f9fa !important; border-right: 2px solid #dee2e6;
         }
-        /* Isi Data Kolom Pertama */
         .table td:first-child {
-            position: sticky;
-            left: 0;
-            z-index: 10;
-            background-color: #fff !important; /* Wajib putih agar tidak transparan saat scroll */
-            border-right: 2px solid #dee2e6;
+            position: sticky; left: 0; z-index: 10; background-color: #fff !important; border-right: 2px solid #dee2e6;
         }
-        /* Fix untuk hover row agar warna sticky col tidak tertutup */
         .table-hover tbody tr:hover td:first-child {
             background-color: #e9ecef !important;
+        }
+
+        /* --- STYLE BARU: NAVBAR LINK --- */
+        .nav-link-custom {
+            color: #d1d1d1;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            transition: color 0.2s;
+            cursor: pointer;
+        }
+        .nav-link-custom:hover {
+            color: #ffc107; /* Kuning Warning */
+            text-decoration: none;
+        }
+        .nav-separator {
+            color: #6c757d;
+            font-size: 0.8rem;
+            margin: 0 5px;
         }
     </style>
 </head>
 <body class="bg-light">
 
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top" style="height: 56px;">
-        <div class="container">
-            <a class="navbar-brand fw-bold text-warning" href="#">
-                SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 10px;">BETA</span>
+    <nav class="navbar navbar-dark bg-dark shadow-sm sticky-top py-2">
+        <div class="container d-flex flex-column align-items-center">
+            
+            <a class="navbar-brand fw-bold text-warning m-0 p-0" href="#" style="font-size: 1.3rem;">
+                SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 9px; vertical-align: middle;">BETA</span>
             </a>
             
-            <div class="btn-group btn-group-sm" role="group">
-                <button type="button" class="btn btn-outline-light" onclick="openStrategyModal()" title="Atur Strategi">
-                    ⚙️ STRATEGI
-                </button>
+            <div class="mt-1 d-flex align-items-center">
+                <a class="nav-link-custom" onclick="openStrategyModal()">STRATEGY</a>
                 
-                <button type="button" class="btn btn-outline-light" id="btn-logout" title="Keluar Aplikasi">
-                    LOGOUT
-                </button>
-
-                <button type="button" class="btn btn-outline-light" onclick="document.getElementById('csv-file-input').click()" title="Upload CSV Baru">
-                    📂 UPLOAD
-                </button>
+                <span class="nav-separator">|</span>
+                
+                <a class="nav-link-custom" id="btn-logout">LOGOUT</a>
+                
+                <span class="nav-separator">|</span>
+                
+                <a class="nav-link-custom" onclick="document.getElementById('csv-file-input').click()">UPLOAD</a>
             </div>
-            <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
 
+            <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
         </div>
     </nav>
 
