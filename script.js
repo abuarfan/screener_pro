@@ -320,9 +320,12 @@ function renderMarketOverview(data) {
 function renderTable(data) {
     const tbody = document.getElementById('table-body');
     const footer = document.getElementById('footer-info');
+    
+    // Safety Check
     if(!tbody) return;
     tbody.innerHTML = '';
     
+    // Cek Data Kosong
     if (!data || data.length === 0) { 
         if(footer) footer.innerText = "Tidak ada saham yang sesuai filter."; 
         return; 
@@ -330,38 +333,114 @@ function renderTable(data) {
 
     data.forEach(item => {
         try {
-            const row = document.createElement('tr'); row.className = 'clickable-row'; 
-            row.id = `row-${item.kode_saham}`; 
+            const row = document.createElement('tr'); 
+            row.className = 'clickable-row border-bottom'; 
+            row.id = `row-${item.kode_saham}`;
             
+            // --- 1. Helper Formatters ---
             const fmt = (n) => new Intl.NumberFormat('id-ID').format(Number(n)||0);
             const fmtDec = (n) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(Number(n)||0);
-            const fmtShort = (n) => { if(Math.abs(n)>=1e12)return(n/1e12).toFixed(1)+' T'; if(Math.abs(n)>=1e9)return(n/1e9).toFixed(1)+' M'; return fmt(n); };
+            const fmtShort = (n) => { 
+                if(Math.abs(n)>=1e12) return (n/1e12).toFixed(1)+' T'; 
+                if(Math.abs(n)>=1e9) return (n/1e9).toFixed(1)+' M'; 
+                return fmt(n); 
+            };
 
-            const star = item.isWatchlist ? '<span class="text-warning star-btn me-2">★</span>' : '<span class="text-secondary star-btn me-2">☆</span>';
+            // --- 2. Logic Data ---
             
-            const cell1 = `<td><div class="d-flex align-items-center"><span onclick="toggleWatchlist('${item.kode_saham}')">${star}</span><div><span class="fw-bold kode-saham-btn" onclick="openPortfolioModal('${item.kode_saham}')">${item.kode_saham}</span></div></div></td>`;
+            // Logic Bintang (Watchlist)
+            const star = item.isWatchlist 
+                ? '<span class="text-warning star-btn me-2" style="cursor:pointer;">★</span>' 
+                : '<span class="text-secondary star-btn me-2" style="cursor:pointer;">☆</span>';
+
+            // Logic Persentase (Bisa Daily Change atau Portfolio P/L jika mode OWNED)
+            let pctValue = item.chgPercent;
+            let isPlus = pctValue >= 0;
+            // Jika ingin menampilkan P/L saat filter OWNED, uncomment baris bawah:
+            // if (currentFilter === 'OWNED' && item.isOwned && item.portfolio) { pctValue = Number(item.portfolio.plPercent); isPlus = pctValue >= 0; }
             
-            const cell2 = `<td>${fmt(item.penutupan)}</td>`;
-            const asingColor = item.netForeign>0?'text-success':(item.netForeign<0?'text-danger':'text-muted');
-            const cell3 = `<td class="text-end"><div><span class="badge bg-light text-dark border" style="font-size:9px;">${item.mcapLabel}</span></div><small class="${asingColor}" style="font-size:10px;">${item.netForeign!==0?fmtShort(item.netForeign):'-'}</small></td>`;
-            const tColor = item.trendLabel.includes('Bullish')?'text-success':(item.trendLabel.includes('Bearish')?'text-danger':'text-muted');
-            const cell4 = `<td class="text-center"><span class="${tColor} fw-bold" style="font-size:0.8rem">${item.trendLabel}</span></td>`;
-            
-            let metric='', badge='';
-            if (currentFilter === 'OWNED' && item.isOwned && item.portfolio) {
-                const pl = Number(item.portfolio.plPercent)||0;
-                metric = `<div class="${pl>=0?'text-success':'text-danger'} fw-bold">${pl>=0?'+':''}${fmtDec(pl)}%</div>`;
-                badge = `<span class="badge bg-secondary">${item.portfolio.status}</span>`;
-            } else {
-                metric = `<div class="${item.change>=0?'text-success':'text-danger'} fw-bold">${item.change>0?'+':''}${fmtDec(item.chgPercent)}%</div>`;
-                badge = item.signal==='BUY'?`<span class="badge bg-success">BUY</span>`:(item.signal==='SELL'?`<span class="badge bg-danger">SELL</span>`:`<span class="badge bg-light text-secondary border">WAIT</span>`);
-            }
-            const cell5 = `<td class="text-end">${metric}</td>`;
-            const cell6 = `<td class="text-center">${badge}</td>`;
-            row.innerHTML = cell1 + cell2 + cell3 + cell4 + cell5 + cell6;
+            const pctClass = isPlus ? 'text-success' : 'text-danger';
+            const pctSign = isPlus && pctValue > 0 ? '+' : '';
+
+            // Logic Warna Net Foreign
+            const nfVal = Number(item.netForeign) || 0;
+            const nfColor = nfVal > 0 ? 'text-success' : (nfVal < 0 ? 'text-danger' : 'text-muted');
+
+            // Logic Tren Badge
+            const trenLabel = item.trendLabel || '-';
+            const trenColor = trenLabel.includes('Bullish') ? 'text-success' : (trenLabel.includes('Bearish') ? 'text-danger' : 'text-muted');
+
+            // Logic Sinyal Badge
+            let signalBadge = '<span class="badge bg-light text-secondary border">WAIT</span>';
+            if (item.signal === 'BUY') signalBadge = '<span class="badge bg-success">BUY</span>';
+            if (item.signal === 'SELL') signalBadge = '<span class="badge bg-danger">SELL</span>';
+
+
+            // --- 3. Penyusunan Sel (8 Kolom) ---
+
+            // Kolom 1: Kode (Gabung dengan Bintang)
+            const cell1 = `
+                <td class="align-middle">
+                    <div class="d-flex align-items-center">
+                        <span onclick="toggleWatchlist('${item.kode_saham}')">${star}</span>
+                        <span class="fw-bold kode-saham-btn text-primary" style="cursor:pointer;" onclick="openPortfolioModal('${item.kode_saham}')">
+                            ${item.kode_saham}
+                        </span>
+                    </div>
+                </td>`;
+
+            // Kolom 2: Change %
+            const cell2 = `
+                <td class="text-end align-middle ${pctClass} fw-bold">
+                    ${pctSign}${fmtDec(pctValue)}%
+                </td>`;
+
+            // Kolom 3: Volume
+            const cell3 = `
+                <td class="text-end align-middle">
+                    ${fmtShort(item.volume)}
+                </td>`;
+
+            // Kolom 4: Close
+            const cell4 = `
+                <td class="text-end align-middle fw-medium">
+                    ${fmt(item.penutupan)}
+                </td>`;
+
+            // Kolom 5: Net Foreign
+            const cell5 = `
+                <td class="text-end align-middle ${nfColor}">
+                    ${fmtShort(nfVal)}
+                </td>`;
+
+            // Kolom 6: Market Cap (Asumsi ada field item.market_cap atau pakai mcapLabel)
+            // Jika di data kamu namanya 'market_cap' (angka), pakai fmtShort(item.market_cap)
+            const cell6 = `
+                <td class="text-end align-middle text-secondary">
+                    ${item.mcapLabel ? item.mcapLabel : fmtShort(item.market_cap)}
+                </td>`;
+
+            // Kolom 7: Tren
+            const cell7 = `
+                <td class="text-center align-middle">
+                    <span class="${trenColor} fw-bold" style="font-size:0.85rem">${trenLabel}</span>
+                </td>`;
+
+            // Kolom 8: Sinyal
+            const cell8 = `
+                <td class="text-center align-middle">
+                    ${signalBadge}
+                </td>`;
+
+            // Gabungkan ke Baris
+            row.innerHTML = cell1 + cell2 + cell3 + cell4 + cell5 + cell6 + cell7 + cell8;
             tbody.appendChild(row);
-        } catch(e){}
+
+        } catch(e) {
+            console.error("Error rendering row:", e);
+        }
     });
+
     if(footer) footer.innerText = `Menampilkan ${data.length} saham.`;
 }
 
