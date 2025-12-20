@@ -34,7 +34,7 @@
     <nav class="navbar navbar-dark shadow-sm sticky-top py-2">
         <div class="container d-flex justify-content-between align-items-center">
             <a class="navbar-brand fw-bold text-warning m-0 p-0" href="#" style="font-size: 1.2rem;">
-                SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 9px; vertical-align: middle;">ACCORDION</span>
+                SCREENER PRO <span class="badge bg-light text-dark ms-1" style="font-size: 9px; vertical-align: middle;">FINAL</span>
             </a>
             <div class="d-flex align-items-center gap-2">
                 <a class="nav-link-custom" href="#" onclick="window.openStrategyModal(); return false;">⚙️ STRATEGY</a>
@@ -183,11 +183,13 @@
                         <thead class="table-light small">
                             <tr>
                                 <th onclick="sortTable(0)" style="cursor:pointer;">Kode ⇅</th>
-                                <th onclick="sortTable(1)" style="cursor:pointer;">Close ⇅</th>
-                                <th onclick="sortTable(2)" style="cursor:pointer;" class="text-end">Fund ⇅</th> 
-                                <th onclick="sortTable(3)" style="cursor:pointer;" class="text-center">Tren Harian ⇅</th>
-                                <th onclick="sortTable(4)" style="cursor:pointer;" class="text-end">Chg% ⇅</th>
-                                <th onclick="sortTable(5)" style="cursor:pointer;" class="text-center">Sinyal ⇅</th>
+                                <th onclick="sortTable(1)" style="cursor:pointer;" class="text-end">Chg% ⇅</th>
+                                <th onclick="sortTable(2)" style="cursor:pointer;" class="text-end">Vol ⇅</th>
+                                <th onclick="sortTable(3)" style="cursor:pointer;" class="text-end">Close ⇅</th>
+                                <th onclick="sortTable(4)" style="cursor:pointer;" class="text-end">Net Foreign ⇅</th>
+                                <th onclick="sortTable(5)" style="cursor:pointer;" class="text-end">Market Cap ⇅</th>
+                                <th onclick="sortTable(6)" style="cursor:pointer;" class="text-center">Tren ⇅</th>
+                                <th onclick="sortTable(7)" style="cursor:pointer;" class="text-center">Sinyal ⇅</th>
                             </tr>
                         </thead>
                         <tbody id="table-body" class="small"></tbody>
